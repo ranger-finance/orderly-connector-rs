@@ -11,6 +11,11 @@
   <p>
     <a href="https://ranger.finance">ranger.finance</a>
   </p>
+  
+  [![Rust](https://github.com/ranger-finance/orderly-connector-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/ranger-finance/orderly-connector-rs/actions/workflows/rust.yml)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Crates.io](https://img.shields.io/crates/v/orderly-connector-rs.svg)](https://crates.io/crates/orderly-connector-rs)
+  [![Documentation](https://docs.rs/orderly-connector-rs/badge.svg)](https://docs.rs/orderly-connector-rs)
 </div>
 
 Rust SDK for interacting with the Orderly Network API (v1/v2). For more information about Orderly Network, visit [Orderly Documentation](https://orderly.network/docs/home). This is based on the python connector [orderly-evm-connector-python](https://github.com/OrderlyNetwork/orderly-evm-connector-python).
@@ -35,75 +40,3 @@ This library provides clients for both REST API interactions and WebSocket strea
 ## Getting Started
 
 ### Adding Dependency
-
-```toml
-[dependencies]
-orderly-connector-rs = { git = "<your_repo_url>" } # Or path, or crates.io once published
-# Add other necessary dependencies like tokio, serde, etc.
-```
-
-### Configuration
-
-The library (specifically the examples and tests) expects configuration via environment variables. Create a `.env` file in the root of your project (`orderly-connector-rs/`) with the following structure:
-
-```.env
-ORDERLY_API_KEY=your_api_key_or_orderly_key
-ORDERLY_SECRET=your_api_secret_or_orderly_secret
-ORDERLY_ACCOUNT_ID=your_orderly_account_id
-# Set to true for testnet, false for mainnet
-ORDERLY_TESTNET=true
-
-# Optional, if needed for specific auth/signing
-# SOLANA_PRIVATE_KEY_BS58=your_solana_private_key
-```
-
-**Note:** Ensure `ORDERLY_TESTNET` is lowercase (`true` or `false`).
-
-### Examples
-
-The `examples/` directory contains usage examples:
-
-- `rest_public.rs`: Demonstrates public REST API calls.
-- `rest_private.rs`: Demonstrates private REST API calls (order placement).
-- `ws_public.rs`: Demonstrates connecting and subscribing to public WebSocket streams.
-- `ws_private.rs`: Demonstrates connecting and subscribing to private WebSocket streams.
-
-To run an example (e.g., `ws_public`):
-
-```bash
-cargo run --example ws_public
-```
-
-### Testing
-
-Integration tests are located in the `tests/` directory.
-
-1.  Ensure your `.env` file is configured correctly in the `orderly-connector-rs/` directory, with `ORDERLY_TESTNET=true` and corresponding testnet credentials.
-2.  Run the tests:
-
-    ```bash
-    # Run only ignored tests (which require network/credentials)
-    cargo test -- --ignored
-
-    # Run all tests (including ignored)
-    # cargo test -- --include-ignored
-    ```
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a PR.
-
-## License
-
-MIT
-
-## TODO
-
-- [ ] Implement comprehensive test suite inspired by the Python connector's tests at
-      https://github.com/OrderlyNetwork/orderly-evm-connector-python/tree/main/tests
-      covering REST API endpoints, WebSocket functionality, authentication, and error handling
-- [ ] Add documentation
-- [ ] Add examples
-- [ ] Add more tests
-- [ ] Add more examples
-- [ ] Add more documentation
