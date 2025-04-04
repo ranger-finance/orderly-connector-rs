@@ -1,5 +1,18 @@
 # Orderly Connector RS
 
+<div align="center">
+  </br>
+  <p>
+    <img height="300" src="https://pbs.twimg.com/profile_banners/1764920763360899072/1711621031/1500x500" />
+  </p>
+  <p>
+    <strong>Orderly Connector Rust</strong>
+  </p>
+  <p>
+    <a href="https://ranger.finance">ranger.finance</a>
+  </p>
+</div>
+
 Rust SDK for interacting with the Orderly Network API (v1/v2).
 
 This library provides clients for both REST API interactions and WebSocket stream subscriptions.
@@ -79,8 +92,19 @@ Integration tests are located in the `tests/` directory.
 
 ## Contributing
 
-(Add contribution guidelines here if applicable)
+Contributions are welcome! Please open an issue or submit a PR.
 
 ## License
 
-(Specify your license, e.g., MIT, Apache-2.0)
+MIT
+
+## TODO
+
+- [ ] Implement comprehensive test suite inspired by the Python connector's tests at
+      https://github.com/OrderlyNetwork/orderly-evm-connector-python/tree/main/tests
+      covering REST API endpoints, WebSocket functionality, authentication, and error handling
+- [ ] Add documentation
+- [ ] Add examples
+- [ ] Add more tests
+- [ ] Add more examples
+- [ ] Add more documentation
