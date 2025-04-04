@@ -14,6 +14,31 @@ const MAINNET_API_URL: &str = "https://api-evm.orderly.network";
 const TESTNET_API_URL: &str = "https://testnet-api-evm.orderly.network";
 const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
+/// A client for interacting with the Orderly Network REST API.
+///
+/// This client provides methods for both public and private endpoints,
+/// handling authentication, request signing, and response parsing.
+///
+/// # Examples
+///
+/// ```no_run
+/// use orderly_connector_rs::rest::Client;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let client = Client::new(
+///         "your_api_key".to_string(),
+///         "your_secret".to_string(),
+///         "your_account_id".to_string(),
+///         true, // is_testnet
+///         None, // timeout_sec
+///     ).expect("Failed to create client");
+///
+///     // Get system status
+///     let status = client.get_system_status().await.expect("Failed to get status");
+///     println!("System status: {:?}", status);
+/// }
+/// ```
 #[derive(Clone)]
 pub struct Client {
     http_client: HttpClient,
@@ -26,6 +51,32 @@ pub struct Client {
 
 impl Client {
     /// Creates a new Orderly REST API client.
+    ///
+    /// # Arguments
+    ///
+    /// * `orderly_key` - Your Orderly API key
+    /// * `orderly_secret` - Your Orderly API secret
+    /// * `orderly_account_id` - Your Orderly account ID
+    /// * `is_testnet` - Whether to use testnet (true) or mainnet (false)
+    /// * `timeout_sec` - Optional timeout in seconds for HTTP requests
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the configured client or an error if initialization fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use orderly_connector_rs::rest::Client;
+    ///
+    /// let client = Client::new(
+    ///     "your_api_key".to_string(),
+    ///     "your_secret".to_string(),
+    ///     "your_account_id".to_string(),
+    ///     true, // is_testnet
+    ///     Some(30), // timeout_sec
+    /// ).expect("Failed to create client");
+    /// ```
     pub fn new(
         orderly_key: String,
         orderly_secret: String,
@@ -245,7 +296,25 @@ impl Client {
     // --- Public Endpoints ---
 
     /// Retrieves the current system status and maintenance information.
-    /// Corresponds to GET /v1/public/system_info
+    ///
+    /// This endpoint provides information about the current state of the Orderly Network,
+    /// including maintenance windows and system status.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the system status information as a JSON `Value` or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::Client;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = Client::new("key".to_string(), "secret".to_string(), "account".to_string(), true, None).unwrap();
+    /// let status = client.get_system_status().await.expect("Failed to get status");
+    /// println!("System status: {:?}", status);
+    /// # }
+    /// ```
     pub async fn get_system_status(&self) -> Result<Value> {
         let path = "/v1/public/system_info";
         let url = self.base_url.join(path)?;
@@ -254,7 +323,32 @@ impl Client {
     }
 
     /// Retrieves exchange information, optionally filtered by symbol.
-    /// Corresponds to GET /v1/public/info and GET /v1/public/info/{symbol}
+    ///
+    /// This endpoint provides detailed information about available trading pairs,
+    /// including trading rules, fees, and other relevant details.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - Optional symbol to filter the exchange information
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the exchange information as a JSON `Value` or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::Client;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = Client::new("key".to_string(), "secret".to_string(), "account".to_string(), true, None).unwrap();
+    /// // Get info for all symbols
+    /// let all_info = client.get_exchange_info(None).await.expect("Failed to get info");
+    ///
+    /// // Get info for a specific symbol
+    /// let symbol_info = client.get_exchange_info(Some("PERP_ETH_USDC")).await.expect("Failed to get symbol info");
+    /// # }
+    /// ```
     pub async fn get_exchange_info(&self, symbol: Option<&str>) -> Result<Value> {
         let path = match symbol {
             Some(s) => format!("/v1/public/info/{}", s),

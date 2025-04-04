@@ -23,17 +23,23 @@ const TESTNET_WS_PRIVATE_URL: &str =
 const MAX_RETRIES: u32 = 30; // Max number of consecutive reconnect attempts
 const RETRY_DELAY_SECS: u64 = 5; // Delay between reconnect attempts
 
+/// Configuration for the WebSocket client.
+///
+/// This struct holds the necessary configuration for connecting to the Orderly Network
+/// WebSocket API, including authentication details and connection settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebsocketClientConfig {
-    pub base_url: String, // The specific WS URL (public/private, mainnet/testnet)
+    /// The WebSocket URL to connect to (public/private, mainnet/testnet)
+    pub base_url: String,
+    /// Optional Orderly API key (required for private endpoints)
     pub orderly_key: Option<String>,
+    /// Optional Orderly API secret (required for private endpoints)
     pub orderly_secret: Option<String>,
+    /// Your Orderly account ID
     pub orderly_account_id: String,
-    pub wss_id: Option<String>, // Optional request ID for WS messages
+    /// Optional WebSocket request ID for message tracking
+    pub wss_id: Option<String>,
 }
-
-// Type alias for the WebSocket stream
-type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 // Type alias for shared subscription state
 type SubscriptionState = Arc<Mutex<HashSet<String>>>;
@@ -153,8 +159,38 @@ async fn connect_managed(
     Ok((combined_handle, tx))
 }
 
-// --- Public Client ---
-
+/// A client for interacting with the Orderly Network public WebSocket API.
+///
+/// This client provides methods for subscribing to public market data streams,
+/// including orderbook updates, tickers, and trades.
+///
+/// # Examples
+///
+/// ```no_run
+/// use orderly_connector_rs::websocket::WebsocketPublicClient;
+/// use std::sync::Arc;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let message_handler = Arc::new(|msg: String| {
+///         println!("Received: {}", msg);
+///     });
+///
+///     let close_handler = Arc::new(|| {
+///         println!("Connection closed");
+///     });
+///
+///     let client = WebsocketPublicClient::connect(
+///         "your_account_id".to_string(),
+///         true, // is_testnet
+///         message_handler,
+///         close_handler,
+///     ).await.expect("Failed to connect");
+///
+///     // Subscribe to orderbook updates
+///     client.subscribe_orderbook("PERP_ETH_USDC").await.expect("Failed to subscribe");
+/// }
+/// ```
 pub struct WebsocketPublicClient {
     // Shared sender to allow sending messages while connection task runs/reconnects
     shared_tx: SharedSender,
@@ -355,8 +391,40 @@ impl WebsocketPublicClient {
     }
 }
 
-// --- Private Client ---
-
+/// A client for interacting with the Orderly Network private WebSocket API.
+///
+/// This client provides methods for subscribing to private data streams,
+/// including account updates, order updates, and position updates.
+///
+/// # Examples
+///
+/// ```no_run
+/// use orderly_connector_rs::websocket::WebsocketPrivateClient;
+/// use std::sync::Arc;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let message_handler = Arc::new(|msg: String| {
+///         println!("Received: {}", msg);
+///     });
+///
+///     let close_handler = Arc::new(|| {
+///         println!("Connection closed");
+///     });
+///
+///     let client = WebsocketPrivateClient::connect(
+///         "your_api_key".to_string(),
+///         "your_secret".to_string(),
+///         "your_account_id".to_string(),
+///         true, // is_testnet
+///         message_handler,
+///         close_handler,
+///     ).await.expect("Failed to connect");
+///
+///     // Subscribe to account updates
+///     client.subscribe_account().await.expect("Failed to subscribe");
+/// }
+/// ```
 pub struct WebsocketPrivateClient {
     shared_tx: SharedSender,
     subscriptions: SubscriptionState,

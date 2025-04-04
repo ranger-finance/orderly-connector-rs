@@ -4,13 +4,54 @@ use chrono::Utc;
 use ed25519_dalek::{Signer, SigningKey};
 
 /// Gets the current UTC timestamp in milliseconds since the Unix epoch.
+///
+/// This function is used for generating timestamps for API requests and signatures.
+///
+/// # Returns
+///
+/// A `Result` containing the current timestamp in milliseconds or an error if
+/// the system time cannot be retrieved.
+///
+/// # Examples
+///
+/// ```no_run
+/// use orderly_connector_rs::auth::get_timestamp_ms;
+///
+/// let timestamp = get_timestamp_ms().expect("Failed to get timestamp");
+/// println!("Current timestamp: {}", timestamp);
+/// ```
 pub fn get_timestamp_ms() -> Result<u64> {
     let now = Utc::now();
     Ok(now.timestamp_millis() as u64)
 }
 
-/// Parses the Orderly secret key string (expected format: "ed25519:<base58_private_key>")
-/// and returns the raw byte representation of the private key.
+/// Parses the Orderly secret key string into its raw byte representation.
+///
+/// The secret key string should be in the format "ed25519:<base58_private_key>".
+///
+/// # Arguments
+///
+/// * `secret_key_str` - The secret key string to parse
+///
+/// # Returns
+///
+/// A `Result` containing the 32-byte private key or an error if parsing fails.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// * The secret key doesn't start with "ed25519:"
+/// * The base58 decoding fails
+/// * The decoded key is not exactly 32 bytes
+///
+/// # Examples
+///
+/// ```no_run
+/// use orderly_connector_rs::auth::parse_secret_key;
+///
+/// let secret_key = "ed25519:your_base58_private_key";
+/// let key_bytes = parse_secret_key(secret_key).expect("Failed to parse secret key");
+/// ```
 fn parse_secret_key(secret_key_str: &str) -> Result<[u8; 32]> {
     if !secret_key_str.starts_with("ed25519:") {
         return Err(OrderlyError::AuthenticationError(
@@ -34,24 +75,34 @@ fn parse_secret_key(secret_key_str: &str) -> Result<[u8; 32]> {
     Ok(key_bytes)
 }
 
-/// Generates an Ed25519 signature for a given message string using the Orderly secret key.
+/// Generates an Ed25519 signature for a given message using the Orderly secret key.
+///
+/// This function is used to sign API requests for authentication.
 ///
 /// # Arguments
 ///
-/// * `orderly_secret`: The Orderly secret key string (e.g., "ed25519:...").
-/// * `message`: The message string to sign (typically timestamp + method + path + body).
+/// * `orderly_secret` - The Orderly secret key string (e.g., "ed25519:...")
+/// * `message` - The message string to sign (typically timestamp + method + path + body)
 ///
 /// # Returns
 ///
-/// A Base64 encoded signature string.
+/// A `Result` containing the Base64 encoded signature string or an error if signing fails.
+///
+/// # Examples
+///
+/// ```no_run
+/// use orderly_connector_rs::auth::generate_signature;
+///
+/// let secret = "ed25519:your_base58_private_key";
+/// let message = "your_message_to_sign";
+/// let signature = generate_signature(secret, message).expect("Failed to generate signature");
+/// println!("Signature: {}", signature);
+/// ```
 pub fn generate_signature(orderly_secret: &str, message: &str) -> Result<String> {
-    let secret_key_bytes = parse_secret_key(orderly_secret)?;
-    let signing_key = SigningKey::from_bytes(&secret_key_bytes);
-
+    let key_bytes = parse_secret_key(orderly_secret)?;
+    let signing_key = SigningKey::from_bytes(&key_bytes);
     let signature = signing_key.sign(message.as_bytes());
-    let encoded_signature = base64::engine::general_purpose::STANDARD.encode(signature.to_bytes());
-
-    Ok(encoded_signature)
+    Ok(base64::engine::general_purpose::STANDARD.encode(signature.to_bytes()))
 }
 
 #[cfg(test)]

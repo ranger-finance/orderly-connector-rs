@@ -2,6 +2,14 @@
 name = "orderly-connector-rs"
 version = "0.1.0"
 edition = "2021"
+description = "A Rust client library for interacting with the Orderly Network API"
+license = "MIT"
+repository = "https://github.com/yourusername/orderly-connector-rs"
+documentation = "https://docs.rs/orderly-connector-rs"
+readme = "README.md"
+keywords = ["orderly", "crypto", "trading", "api", "websocket"]
+categories = ["api-bindings", "cryptography", "network-programming"]
+authors = ["Your Name <your.email@example.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

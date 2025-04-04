@@ -2,6 +2,17 @@ use serde::{Deserialize, Serialize};
 
 // --- Enums ---
 
+/// Represents the different types of orders supported by the Orderly Network.
+///
+/// # Variants
+///
+/// * `Limit` - A limit order that executes at a specified price or better
+/// * `Market` - A market order that executes at the current market price
+/// * `Ioc` - Immediate or Cancel order that executes immediately or is cancelled
+/// * `Fok` - Fill or Kill order that must be filled completely or cancelled
+/// * `PostOnly` - Order that only adds liquidity to the order book
+/// * `Ask` - A limit sell order
+/// * `Bid` - A limit buy order
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderType {
@@ -14,6 +25,12 @@ pub enum OrderType {
     Bid,
 }
 
+/// Represents the side of an order (buy or sell).
+///
+/// # Variants
+///
+/// * `Buy` - A buy order
+/// * `Sell` - A sell order
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Side {
@@ -21,6 +38,17 @@ pub enum Side {
     Sell,
 }
 
+/// Represents the current status of an order.
+///
+/// # Variants
+///
+/// * `New` - Order has been created but not yet accepted by the matching engine
+/// * `Accepted` - Order has been accepted by the matching engine
+/// * `Filled` - Order has been completely filled
+/// * `Cancelled` - Order has been cancelled
+/// * `Rejected` - Order has been rejected
+/// * `Expired` - Order has expired
+/// * `PartialFilled` - Order has been partially filled
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderStatus {
@@ -36,6 +64,18 @@ pub enum OrderStatus {
 
 // --- Request Structs ---
 
+/// Request structure for creating a new order.
+///
+/// # Fields
+///
+/// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+/// * `order_type` - The type of order to create
+/// * `side` - Whether to buy or sell
+/// * `order_price` - The price for limit orders (optional for market orders)
+/// * `order_quantity` - The quantity to buy/sell
+/// * `order_amount` - The total amount to spend (optional)
+/// * `client_order_id` - Optional client-specified order ID
+/// * `visible_quantity` - Optional visible quantity for iceberg orders
 #[derive(Serialize, Debug, Clone)]
 pub struct CreateOrderRequest<'a> {
     pub symbol: &'a str,
@@ -53,6 +93,18 @@ pub struct CreateOrderRequest<'a> {
     // Add other optional fields like reduce_only, trigger_price etc. if needed
 }
 
+/// Parameters for retrieving multiple orders.
+///
+/// # Fields
+///
+/// * `symbol` - Optional symbol to filter orders
+/// * `side` - Optional side to filter orders
+/// * `order_type` - Optional order type to filter
+/// * `status` - Optional order status to filter
+/// * `start_t` - Optional start timestamp in milliseconds
+/// * `end_t` - Optional end timestamp in milliseconds
+/// * `page` - Optional page number for pagination
+/// * `size` - Optional number of orders per page
 #[derive(Serialize, Debug, Clone, Default)]
 pub struct GetOrdersParams<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -76,7 +128,17 @@ pub struct GetOrdersParams<'a> {
 
 // --- Response Structs ---
 
-// General success response structure often includes success:bool and data:T
+/// A generic success response structure from the Orderly API.
+///
+/// # Type Parameters
+///
+/// * `T` - The type of data contained in the response
+///
+/// # Fields
+///
+/// * `success` - Whether the request was successful
+/// * `data` - The response data
+/// * `timestamp` - The server timestamp when the response was generated
 #[derive(Deserialize, Debug, Clone)]
 pub struct SuccessResponse<T> {
     pub success: bool,
@@ -84,6 +146,27 @@ pub struct SuccessResponse<T> {
     pub timestamp: u64,
 }
 
+/// Represents an order in the Orderly Network.
+///
+/// # Fields
+///
+/// * `order_id` - The unique order ID
+/// * `client_order_id` - Optional client-specified order ID
+/// * `symbol` - The trading pair symbol
+/// * `side` - The order side (buy/sell)
+/// * `order_type` - The type of order
+/// * `order_price` - The order price (for limit orders)
+/// * `order_quantity` - The order quantity
+/// * `order_amount` - The order amount
+/// * `status` - The current order status
+/// * `executed_quantity` - The quantity that has been executed
+/// * `executed_value` - The value of executed quantity
+/// * `average_executed_price` - The average execution price
+/// * `total_fee` - The total fee for the order
+/// * `fee_asset` - The asset in which fees are paid
+/// * `visible_quantity` - The visible quantity (for iceberg orders)
+/// * `created_time` - The timestamp when the order was created
+/// * `updated_time` - The timestamp when the order was last updated
 #[derive(Deserialize, Debug, Clone)]
 pub struct Order {
     pub order_id: u64,
@@ -106,6 +189,12 @@ pub struct Order {
     // Add reduce_only, source, trigger_price etc. if present in actual response
 }
 
+/// Response data for a create order request.
+///
+/// # Fields
+///
+/// * `order_id` - The unique order ID assigned by the exchange
+/// * `client_order_id` - Optional client-specified order ID
 #[derive(Deserialize, Debug, Clone)]
 pub struct CreateOrderResponseData {
     pub order_id: u64,
