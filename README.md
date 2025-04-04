@@ -45,6 +45,12 @@ Add the following to your `Cargo.toml`:
 orderly-connector-rs = "0.1.0"
 ```
 
+Or install using cargo:
+
+```bash
+cargo add orderly-connector-rs
+```
+
 ## Quick Start
 
 ### REST API Client
@@ -114,6 +120,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ## API Documentation
+
+For detailed API documentation, visit [docs.rs/orderly-connector-rs](https://docs.rs/orderly-connector-rs).
 
 ### REST Client
 
@@ -205,3 +213,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE-MIT](LICENSE-MIT) file for details.
+
+## Links
+
+- [Crates.io Package](https://crates.io/crates/orderly-connector-rs)
+- [API Documentation](https://docs.rs/orderly-connector-rs)
+- [GitHub Repository](https://github.com/ranger-finance/orderly-connector-rs)
+- [Orderly Network Documentation](https://orderly.network/docs/home)
