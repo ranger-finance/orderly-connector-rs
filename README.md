@@ -13,7 +13,7 @@
   </p>
 </div>
 
-Rust SDK for interacting with the Orderly Network API (v1/v2). For more information about Orderly Network, visit [Orderly Documentation](https://orderly.network/docs/home).
+Rust SDK for interacting with the Orderly Network API (v1/v2). For more information about Orderly Network, visit [Orderly Documentation](https://orderly.network/docs/home). This is based on the python connector [orderly-evm-connector-python](https://github.com/OrderlyNetwork/orderly-evm-connector-python).
 This library provides clients for both REST API interactions and WebSocket stream subscriptions.
 
 ## Features
