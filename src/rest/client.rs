@@ -3,7 +3,6 @@ use crate::error::{OrderlyError, Result};
 use crate::types::*;
 use log::warn;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use reqwest::StatusCode;
 use reqwest::{Client as HttpClient, Method, Request, Response};
 use serde::de::DeserializeOwned;
 use serde::Serialize;

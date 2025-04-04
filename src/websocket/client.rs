@@ -185,14 +185,11 @@ impl WebsocketPublicClient {
             async move {
                 let mut retries = 0;
                 loop {
-                    let base_url = format!(
-                        "{}",
-                        if is_testnet {
+                    let base_url = (if is_testnet {
                             TESTNET_WS_PUBLIC_URL
                         } else {
                             MAINNET_WS_PUBLIC_URL
-                        }
-                    );
+                        }).to_string();
                     let url_with_account = format!("{}/{}", base_url, account_id);
                     let config = WebsocketClientConfig {
                         base_url: url_with_account,
