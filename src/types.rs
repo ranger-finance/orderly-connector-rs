@@ -146,3 +146,313 @@ pub struct CancelOrderResponseData {
 }
 
 pub type CancelOrderResponse = SuccessResponse<CancelOrderResponseData>;
+
+// --- Account Information ---
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AccountInfo {
+    pub account_id: String,
+    pub email: String,
+    pub market_type: Option<String>, // SPOT or FUTURES
+    pub leverage: f64,
+    pub max_leverage: f64,
+    pub maintenance_margin_ratio: f64,
+    pub imr_factor: Option<f64>,
+    pub max_notional: Option<f64>,
+    pub free_collateral: f64,
+    pub total_collateral: f64,
+    pub total_collateral_value: Option<f64>, // Added based on potential API responses
+    pub total_pnl: Option<f64>,              // Added based on potential API responses
+    pub imr_withdraw_safe: Option<f64>,      // Added based on potential API responses
+    pub mmr_withdraw_safe: Option<f64>,      // Added based on potential API responses
+                                             // ... other fields as per API documentation
+}
+
+pub type GetAccountInfoResponse = SuccessResponse<AccountInfo>;
+
+// --- Holdings / Balances ---
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Holding {
+    pub token: String,
+    pub holding: f64,                   // Total balance
+    pub frozen: f64,                    // Amount locked in orders
+    pub pending_short_qty: Option<f64>, // For futures?
+    pub pending_long_qty: Option<f64>,  // For futures?
+    pub available_balance: f64,         // holding - frozen
+    pub cost_position: Option<f64>,
+    pub mark_price: Option<f64>,
+    pub updated_time: u64,
+    // ... other fields like valuation, interest etc.
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetHoldingResponseData {
+    pub holding: Vec<Holding>,
+}
+
+pub type GetHoldingResponse = SuccessResponse<GetHoldingResponseData>;
+
+// --- Positions ---
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Position {
+    pub symbol: String,
+    pub position_qty: f64,
+    pub cost_position: f64,
+    pub last_sum_unitary_funding: f64,
+    pub pending_long_qty: f64,
+    pub pending_short_qty: f64,
+    pub unrealized_pnl: f64, // Also called unrealised_pnl
+    pub mark_price: f64,
+    pub liquidation_price: Option<f64>, // Can be null if position_qty is 0
+    pub average_open_price: f64,
+    pub timestamp: u64,
+    pub fee_24_h: Option<f64>,       // Added
+    pub settlement_pnl: Option<f64>, // Added
+    pub est_liq_price: Option<f64>,  // Added, alternative name?
+                                     // ... other fields
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetPositionsResponseData {
+    pub rows: Vec<Position>,
+    // Does positions endpoint have pagination? Check API docs. Assuming no for now.
+    // pub meta: Option<PaginationMeta>,
+}
+
+pub type GetPositionsResponse = SuccessResponse<GetPositionsResponseData>;
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetSinglePositionResponseData {
+    // Getting a single position often returns the Position struct directly
+    #[serde(flatten)]
+    pub position: Position,
+}
+
+pub type GetSinglePositionResponse = SuccessResponse<GetSinglePositionResponseData>;
+
+// --- Asset History (Deposits/Withdrawals) ---
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AssetHistoryType {
+    Deposit,
+    Withdrawal,
+    // Other types like Transfer, Interest, RealizedPnl, Fee, FundingFee, etc.?
+}
+
+#[derive(Serialize, Debug, Clone, Default)]
+pub struct GetAssetHistoryParams<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub side: Option<AssetHistoryType>, // Type of transaction
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u32>,
+    // Add status filters if applicable
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AssetHistoryEntry {
+    pub id: u64,
+    pub token: String,
+    pub side: AssetHistoryType, // Matches the enum
+    pub amount: f64,
+    pub fee: Option<f64>,
+    pub status: String, // e.g., "COMPLETED", "PENDING", "FAILED"
+    pub transaction_hash: Option<String>,
+    pub chain_id: Option<String>, // Or u64?
+    pub chain_name: Option<String>,
+    pub created_time: u64,
+    pub updated_time: u64,
+    // ... other fields like address, network etc.
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetAssetHistoryResponseData {
+    pub rows: Vec<AssetHistoryEntry>,
+    pub meta: Option<PaginationMeta>,
+}
+
+pub type GetAssetHistoryResponse = SuccessResponse<GetAssetHistoryResponseData>;
+
+// --- Trades ---
+
+#[derive(Serialize, Debug, Clone, Default)]
+pub struct GetTradesParams<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u32>,
+    // Add order_id, source filters if applicable
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Trade {
+    pub id: u64,
+    pub symbol: String,
+    pub side: Side,
+    pub order_id: u64,
+    pub order_source: Option<String>, // e.g., "API", "WEB"
+    pub executed_price: f64,
+    pub executed_quantity: f64,
+    pub fee: f64,
+    pub fee_asset: String,
+    pub is_maker: bool,
+    pub executed_timestamp: u64, // Also called transaction_time?
+                                 // ... other fields
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetTradesResponseData {
+    pub rows: Vec<Trade>,
+    pub meta: Option<PaginationMeta>,
+}
+
+pub type GetTradesResponse = SuccessResponse<GetTradesResponseData>;
+
+// --- Client Statistics ---
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ClientStatistics {
+    pub account_id: String,
+    pub total_trading_volume_30_d: f64, // Assuming f64 for volume
+    pub futures_trading_volume_30_d: f64,
+    pub spot_trading_volume_30_d: f64,
+    pub total_fee_30_d: f64,
+    pub vip_tier: Option<u32>, // Or String?
+                               // ... other stats fields
+}
+
+pub type GetClientStatisticsResponse = SuccessResponse<ClientStatistics>;
+
+// --- Add other account-related structs as needed (e.g., Algo Orders, Liquidations) ---
+
+// --- Withdrawals ---
+
+// Note: Withdrawal history is often fetched via get_asset_history using AssetHistoryType::Withdrawal
+
+#[derive(Serialize, Debug, Clone)]
+pub struct WithdrawRequest<'a> {
+    pub chain_id: &'a str, // Or u64? API specific
+    pub token: &'a str,
+    pub amount: f64,
+    pub withdraw_address: &'a str,
+    pub message: Option<&'a str>, // Optional message/memo
+                                  // Add other fields like twoFactorCode if required by API
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct WithdrawResponseData {
+    pub withdraw_id: u64, // Or String?
+                          // Other potential fields confirming withdrawal request
+}
+
+pub type WithdrawResponse = SuccessResponse<WithdrawResponseData>;
+
+// --- Fee Rates ---
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct FeeRate {
+    pub symbol: String,
+    pub maker_fee_rate: f64,
+    pub taker_fee_rate: f64,
+    pub rebate_rate: Option<f64>,
+    pub source: Option<String>, // e.g., "DEFAULT", "VIP"
+    pub updated_time: u64,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetFeeRatesResponseData {
+    pub fee_rates: Vec<FeeRate>,
+    pub taker_fee_rate_30_d: Option<f64>, // Overall 30d taker rate
+    pub maker_fee_rate_30_d: Option<f64>, // Overall 30d maker rate
+    pub volume_30_d: Option<f64>,         // Overall 30d volume
+    pub vip_level: Option<u32>,           // VIP level if applicable
+}
+
+pub type GetFeeRatesResponse = SuccessResponse<GetFeeRatesResponseData>;
+
+// --- Liquidations ---
+
+#[derive(Serialize, Debug, Clone, Default)]
+pub struct GetLiquidationsParams<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u32>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct LiquidationEntry {
+    pub id: u64, // Liquidation record ID
+    pub symbol: String,
+    pub liquidation_price: f64,
+    pub mark_price: f64,
+    pub quantity: f64,
+    pub amount: f64,
+    pub liquidation_fee: f64,
+    pub created_time: u64, // Timestamp ms of liquidation event
+                           // ... other potential fields like cost_position, etc.
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetLiquidationsResponseData {
+    pub rows: Vec<LiquidationEntry>,
+    pub meta: Option<PaginationMeta>,
+}
+
+pub type GetLiquidationsResponse = SuccessResponse<GetLiquidationsResponseData>;
+
+// --- PnL Settlement ---
+
+#[derive(Serialize, Debug, Clone, Default)]
+pub struct GetSettlementsParams<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u32>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct SettlementEntry {
+    pub id: u64, // Settlement record ID
+    pub symbol: String,
+    pub settlement_price: f64,
+    pub settlement_pnl: f64,
+    pub timestamp: u64, // Timestamp ms of settlement
+                        // ... other fields like funding fee component?
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetSettlementsResponseData {
+    pub rows: Vec<SettlementEntry>,
+    pub meta: Option<PaginationMeta>,
+}
+
+pub type GetSettlementsResponse = SuccessResponse<GetSettlementsResponseData>;
