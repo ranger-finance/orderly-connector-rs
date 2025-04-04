@@ -80,4 +80,4 @@ async fn test_public_ws_connect_subscribe_unsubscribe() {
     // Note: Depending on implementation, the close handler might not be called immediately
     // or exactly upon `stop()`, especially if the stop is graceful.
     // Consider the exact behavior needed for this assertion.
-} 
+}

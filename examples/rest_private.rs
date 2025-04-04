@@ -13,7 +13,10 @@ async fn main() {
     let api_key = env::var("ORDERLY_API_KEY").expect("ORDERLY_API_KEY not set");
     let secret = env::var("ORDERLY_SECRET").expect("ORDERLY_SECRET not set");
     let account_id = env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
-    let is_testnet: bool = env::var("ORDERLY_TESTNET").unwrap_or("true".to_string()).parse().expect("ORDERLY_TESTNET must be true or false");
+    let is_testnet: bool = env::var("ORDERLY_TESTNET")
+        .unwrap_or("true".to_string())
+        .parse()
+        .expect("ORDERLY_TESTNET must be true or false");
 
     // IMPORTANT: Private endpoint examples modify state (create/cancel orders).
     // Ensure you are running against TESTNET unless you intend to affect mainnet.
@@ -71,7 +74,10 @@ async fn main() {
 
     // --- Get Orders (Filtered by symbol) ---
     println!("\nFetching orders for {}...", symbol);
-    let params = GetOrdersParams { symbol: Some(symbol), ..Default::default() };
+    let params = GetOrdersParams {
+        symbol: Some(symbol),
+        ..Default::default()
+    };
     match client.get_orders(Some(params)).await {
         Ok(resp) => println!("Get Orders Response: {:#?}", resp),
         Err(e) => eprintln!("Error fetching orders for {}: {}", symbol, e),
@@ -85,4 +91,4 @@ async fn main() {
             Err(e) => eprintln!("Error cancelling order {}: {}", id, e),
         }
     }
-} 
+}

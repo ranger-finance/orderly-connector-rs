@@ -26,7 +26,10 @@ async fn main() {
     let api_key = env::var("ORDERLY_API_KEY").expect("ORDERLY_API_KEY not set");
     let api_secret = env::var("ORDERLY_SECRET").expect("ORDERLY_SECRET not set");
     let account_id = env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
-    let is_testnet: bool = env::var("ORDERLY_TESTNET").unwrap_or("true".to_string()).parse().expect("ORDERLY_TESTNET must be true or false");
+    let is_testnet: bool = env::var("ORDERLY_TESTNET")
+        .unwrap_or("true".to_string())
+        .parse()
+        .expect("ORDERLY_TESTNET must be true or false");
 
     // Ensure we run this example against testnet only
     if !is_testnet {
@@ -35,7 +38,10 @@ async fn main() {
         return;
     }
 
-    println!("Connecting to Private WebSocket (Testnet: {})...", is_testnet);
+    println!(
+        "Connecting to Private WebSocket (Testnet: {})...",
+        is_testnet
+    );
 
     // Connect the client
     let client = match WebsocketPrivateClient::connect(
@@ -89,4 +95,4 @@ async fn main() {
     client.stop().await;
 
     println!("Example finished.");
-} 
+}

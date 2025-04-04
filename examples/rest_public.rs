@@ -12,7 +12,10 @@ async fn main() {
     let api_key = env::var("ORDERLY_API_KEY").expect("ORDERLY_API_KEY not set");
     let secret = env::var("ORDERLY_SECRET").expect("ORDERLY_SECRET not set");
     let account_id = env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
-    let is_testnet: bool = env::var("ORDERLY_TESTNET").unwrap_or("true".to_string()).parse().expect("ORDERLY_TESTNET must be true or false");
+    let is_testnet: bool = env::var("ORDERLY_TESTNET")
+        .unwrap_or("true".to_string())
+        .parse()
+        .expect("ORDERLY_TESTNET must be true or false");
 
     // Initialize the client
     let client = Client::new(api_key, secret, account_id, is_testnet, None)
@@ -49,10 +52,10 @@ async fn main() {
         Err(e) => eprintln!("Error fetching futures info: {}", e),
     }
 
-     // --- Get Futures Info (Specific Symbol) ---
+    // --- Get Futures Info (Specific Symbol) ---
     println!("\nFetching futures info for {}...", symbol);
     match client.get_futures_info(Some(symbol)).await {
         Ok(info) => println!("Futures Info ({}): {:#?}", symbol, info),
         Err(e) => eprintln!("Error fetching futures info for {}: {}", symbol, e),
     }
-} 
+}

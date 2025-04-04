@@ -25,9 +25,15 @@ async fn main() {
     // Load configuration from environment variables
     // Public WS needs account ID for the URL path
     let account_id = env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
-    let is_testnet: bool = env::var("ORDERLY_TESTNET").unwrap_or("true".to_string()).parse().expect("ORDERLY_TESTNET must be true or false");
+    let is_testnet: bool = env::var("ORDERLY_TESTNET")
+        .unwrap_or("true".to_string())
+        .parse()
+        .expect("ORDERLY_TESTNET must be true or false");
 
-    println!("Connecting to Public WebSocket (Testnet: {})...", is_testnet);
+    println!(
+        "Connecting to Public WebSocket (Testnet: {})...",
+        is_testnet
+    );
 
     // Connect the client
     let client = match WebsocketPublicClient::connect(
@@ -79,4 +85,4 @@ async fn main() {
     client.stop().await;
 
     println!("Example finished.");
-} 
+}
