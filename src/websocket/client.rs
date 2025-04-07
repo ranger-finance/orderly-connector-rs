@@ -375,6 +375,29 @@ impl WebsocketPublicClient {
         self.unsubscribe(msg).await
     }
 
+    /// Subscribe to the liquidation push stream.
+    /// Push interval: push on addition/removal/update from list within 1s.
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/websocket-api/public/liquidation-push
+    pub async fn subscribe_liquidations(&self) -> Result<()> {
+        // Use a descriptive ID, or consider making it configurable/dynamic
+        let msg = json!({
+            "id": "sub_liquidations",
+            "event": "subscribe",
+            "topic": "liquidation"
+        });
+        self.subscribe(msg).await
+    }
+
+    /// Unsubscribe from the liquidation push stream.
+    pub async fn unsubscribe_liquidations(&self) -> Result<()> {
+        let msg = json!({
+            "id": "unsub_liquidations",
+            "event": "unsubscribe",
+            "topic": "liquidation"
+        });
+        self.unsubscribe(msg).await
+    }
+
     // --- Stop Method ---
     pub async fn stop(&self) {
         info!("Stopping WebSocket client...");
