@@ -3,7 +3,7 @@
 // Import the common setup function
 mod common;
 
-use orderly_connector_rs::rest::Client;
+use orderly_connector_rs::rest::OrderlyService;
 
 #[tokio::test]
 #[ignore] // Ignored by default as it requires network access and credentials
@@ -14,8 +14,7 @@ async fn test_get_system_status() {
     let account_id = common::get_env_var("ORDERLY_ACCOUNT_ID");
     let is_testnet = common::get_testnet_flag();
 
-    let client = Client::new(api_key, secret, account_id, is_testnet, None)
-        .expect("Failed to create REST client");
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
 
     let result = client.get_system_status().await;
     println!("System Status Result: {:?}", result);
@@ -35,8 +34,7 @@ async fn test_get_exchange_info_all() {
     let account_id = common::get_env_var("ORDERLY_ACCOUNT_ID");
     let is_testnet = common::get_testnet_flag();
 
-    let client = Client::new(api_key, secret, account_id, is_testnet, None)
-        .expect("Failed to create REST client");
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
 
     let result = client.get_exchange_info(None).await;
     println!("Exchange Info (All) Result: {:?}", result);
@@ -59,8 +57,7 @@ async fn test_get_exchange_info_specific() {
     let is_testnet = common::get_testnet_flag();
     let symbol = "PERP_ETH_USDC"; // Assumes this symbol exists on testnet/mainnet
 
-    let client = Client::new(api_key, secret, account_id, is_testnet, None)
-        .expect("Failed to create REST client");
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
 
     let result = client.get_exchange_info(Some(symbol)).await;
     println!("Exchange Info ({}) Result: {:?}", symbol, result);

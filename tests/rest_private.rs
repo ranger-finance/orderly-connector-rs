@@ -2,13 +2,15 @@
 
 mod common;
 
-use orderly_connector_rs::rest::Client;
+use orderly_connector_rs::rest::client::Credentials;
+use orderly_connector_rs::rest::OrderlyService;
 use orderly_connector_rs::types::{
     CreateOrderRequest, GetOrdersParams, OrderStatus, OrderType, Side,
 };
+use std::env;
 use tokio::time::{sleep, Duration};
 
-fn setup_client() -> Client {
+fn setup_client() -> (OrderlyService, Credentials<'static>) {
     common::setup();
     let api_key = common::get_env_var("ORDERLY_API_KEY");
     let secret = common::get_env_var("ORDERLY_SECRET");
@@ -20,89 +22,104 @@ fn setup_client() -> Client {
     //     panic!("Private tests should only be run against testnet (set ORDERLY_TESTNET=true)");
     // }
 
-    Client::new(api_key, secret, account_id, is_testnet, None)
-        .expect("Failed to create REST client")
+    // Create the service
+    let service = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
+
+    // Create credentials that will be owned by the test
+    let creds = Credentials {
+        orderly_key: Box::leak(api_key.into_boxed_str()),
+        orderly_secret: Box::leak(secret.into_boxed_str()),
+        orderly_account_id: Box::leak(account_id.into_boxed_str()),
+    };
+
+    (service, creds)
 }
 
 #[tokio::test]
 #[ignore] // Ignored by default
 async fn test_create_get_cancel_order() {
-    let client = setup_client();
+    let (client, creds) = setup_client();
     let symbol = "PERP_ETH_USDC"; // Testnet symbol
     let mut created_order_id: Option<u64> = None;
 
-    // --- 1. Create Limit Buy Order --- (Place below market)
+    // Create a limit buy order
     let order_req = CreateOrderRequest {
         symbol,
         order_type: OrderType::Limit,
         side: Side::Buy,
-        order_price: Some(1000.0), // Low price to avoid immediate fill
+        order_price: Some(1000.0), // Place below market to avoid immediate fill
         order_quantity: 0.01,
         order_amount: None,
         client_order_id: None,
         visible_quantity: None,
     };
 
-    let create_result = client.create_order(order_req).await;
-    println!("Create Order Result: {:?}", create_result);
-    assert!(create_result.is_ok(), "Failed to create order");
-    let create_resp = create_result.unwrap();
-    assert!(create_resp.success, "Order creation API call failed");
-    assert!(create_resp.data.order_id > 0);
-    created_order_id = Some(create_resp.data.order_id);
+    match client.create_order(&creds, order_req).await {
+        Ok(resp) => {
+            println!("Create Order Response: {:#?}", resp);
+            assert!(resp.success, "Order creation should succeed");
+            created_order_id = Some(resp.data.order_id);
+        }
+        Err(e) => panic!("Failed to create order: {}", e),
+    }
 
     // Give order time to appear
     sleep(Duration::from_secs(2)).await;
 
-    // --- 2. Get Specific Order ---
-    let order_id = created_order_id.expect("Order ID should exist after creation");
-    let get_result = client.get_order(order_id).await;
-    println!("Get Order Result: {:?}", get_result);
-    assert!(get_result.is_ok(), "Failed to get order {}", order_id);
-    let get_resp = get_result.unwrap();
-    assert!(get_resp.success, "Get order API call failed");
-    let fetched_order = get_resp.data.order;
-    assert_eq!(fetched_order.order_id, order_id);
+    // Get the order details
+    if let Some(id) = created_order_id {
+        match client.get_order(&creds, id).await {
+            Ok(resp) => {
+                println!("Get Order Response: {:#?}", resp);
+                assert_eq!(resp.data.order.symbol, symbol);
+            }
+            Err(e) => panic!("Failed to get order {}: {}", id, e),
+        }
+    }
 
-    // --- 3. Get Orders (Filtered) ---
+    // Get all orders for the symbol
     let params = GetOrdersParams {
         symbol: Some(symbol),
         ..Default::default()
     };
-    let get_filtered_result = client.get_orders(Some(params)).await;
-    println!("Get Orders (Filtered) Result: {:?}", get_filtered_result);
-    assert!(get_filtered_result.is_ok(), "Failed to get filtered orders");
-    let get_filtered_resp = get_filtered_result.unwrap();
-    assert!(
-        get_filtered_resp.success,
-        "Get filtered orders API call failed"
-    );
-    assert!(
-        !get_filtered_resp.data.rows.is_empty(),
-        "Expected at least one order for {}",
-        symbol
-    );
+    match client.get_orders(&creds, Some(params)).await {
+        Ok(resp) => {
+            println!("Get Orders Response: {:#?}", resp);
+            if let Some(id) = created_order_id {
+                assert!(
+                    resp.data.rows.iter().any(|order| order.order_id == id),
+                    "Created order should be in the list"
+                );
+            }
+        }
+        Err(e) => panic!("Failed to get orders: {}", e),
+    }
 
-    // --- 4. Cancel Order ---
-    let cancel_result = client.cancel_order(order_id, symbol).await;
-    println!("Cancel Order Result: {:?}", cancel_result);
-    assert!(cancel_result.is_ok(), "Failed to cancel order {}", order_id);
-    let cancel_resp = cancel_result.unwrap();
-    // Note: Check actual success logic based on API specifics (e.g., status field)
-    assert!(cancel_resp.success, "Cancel order API call failed");
-    // TODO: Add assertion based on actual cancel success response field if available
+    // Cancel the order
+    if let Some(id) = created_order_id {
+        match client.cancel_order(&creds, id, symbol).await {
+            Ok(resp) => {
+                println!("Cancel Order Response: {:#?}", resp);
+                assert!(resp.success, "Order cancellation should succeed");
+            }
+            Err(e) => panic!("Failed to cancel order {}: {}", id, e),
+        }
+    }
 
-    // Optional: Verify order status is cancelled by fetching it again
-    sleep(Duration::from_secs(1)).await;
-    let get_after_cancel_result = client.get_order(order_id).await;
-    if let Ok(resp) = get_after_cancel_result {
-        let order = resp.data.order;
-        assert!(
-            matches!(order.status, OrderStatus::Cancelled | OrderStatus::Rejected),
-            "Order status should be Cancelled or Rejected after cancellation, but was {:?}",
-            order.status
-        );
-    } // Silently ignore error if fetch fails after cancel
+    // Verify the order is cancelled
+    if let Some(id) = created_order_id {
+        match client.get_order(&creds, id).await {
+            Ok(resp) => {
+                println!("Get Order Response after cancel: {:#?}", resp);
+                assert_eq!(
+                    resp.data.order.status,
+                    OrderStatus::Cancelled,
+                    "Order should be cancelled"
+                );
+            }
+            Err(e) => panic!("Failed to get order {} after cancel: {}", id, e),
+        }
+    }
 }
 
 // Add more tests for other private endpoints: get_account_info, positions, etc.

@@ -1,5 +1,6 @@
+use orderly_connector_rs::rest::client::Credentials;
 // examples/rest_private.rs
-use orderly_connector_rs::rest::Client;
+use orderly_connector_rs::rest::OrderlyService;
 use orderly_connector_rs::types::{CreateOrderRequest, GetOrdersParams, OrderType, Side};
 use std::env;
 use tokio::time::{sleep, Duration};
@@ -26,8 +27,7 @@ async fn main() {
     println!("Using Testnet: {}", is_testnet);
 
     // Initialize the client
-    let client = Client::new(api_key, secret, account_id, is_testnet, None)
-        .expect("Failed to create REST client");
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
 
     let symbol = "PERP_ETH_USDC"; // Testnet symbol
 
@@ -44,7 +44,13 @@ async fn main() {
         visible_quantity: None,
     };
 
-    let order_id = match client.create_order(order_req).await {
+    let creds = Credentials {
+        orderly_key: &api_key,
+        orderly_secret: &secret,
+        orderly_account_id: &account_id,
+    };
+
+    let order_id = match client.create_order(&creds, order_req).await {
         Ok(resp) => {
             println!("Create Order Response: {:#?}", resp);
             if resp.success {
@@ -66,7 +72,7 @@ async fn main() {
     // --- Get Specific Order (if created) ---
     if let Some(id) = order_id {
         println!("\nFetching order {}...", id);
-        match client.get_order(id).await {
+        match client.get_order(&creds, id).await {
             Ok(resp) => println!("Get Order Response: {:#?}", resp),
             Err(e) => eprintln!("Error fetching order {}: {}", id, e),
         }
@@ -78,7 +84,7 @@ async fn main() {
         symbol: Some(symbol),
         ..Default::default()
     };
-    match client.get_orders(Some(params)).await {
+    match client.get_orders(&creds, Some(params)).await {
         Ok(resp) => println!("Get Orders Response: {:#?}", resp),
         Err(e) => eprintln!("Error fetching orders for {}: {}", symbol, e),
     }
@@ -86,7 +92,7 @@ async fn main() {
     // --- Cancel Order (if created) ---
     if let Some(id) = order_id {
         println!("\nAttempting to cancel order {}...", id);
-        match client.cancel_order(id, symbol).await {
+        match client.cancel_order(&creds, id, symbol).await {
             Ok(resp) => println!("Cancel Order Response: {:#?}", resp),
             Err(e) => eprintln!("Error cancelling order {}: {}", id, e),
         }

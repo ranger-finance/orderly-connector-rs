@@ -14,81 +14,83 @@ const MAINNET_API_URL: &str = "https://api-evm.orderly.network";
 const TESTNET_API_URL: &str = "https://testnet-api-evm.orderly.network";
 const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
-/// A client for interacting with the Orderly Network REST API.
+/// Holds the necessary credentials for authenticating with private Orderly endpoints.
+#[derive(Debug, Clone)] // Clone is useful, Debug for logging
+pub struct Credentials<'a> {
+    /// The public API key provided by Orderly Network.
+    pub orderly_key: &'a str,
+    /// The private API secret provided by Orderly Network, used for signing requests.
+    pub orderly_secret: &'a str,
+    /// The user's unique account identifier on Orderly Network.
+    pub orderly_account_id: &'a str,
+}
+
+/// A service client for interacting with the Orderly Network REST API.
 ///
-/// This client provides methods for both public and private endpoints,
-/// handling authentication, request signing, and response parsing.
+/// This service holds shared components like the HTTP client and base URL,
+/// allowing multiple users' requests to be handled efficiently.
+/// User-specific credentials should be passed into the methods requiring authentication.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use orderly_connector_rs::rest::Client;
+/// use orderly_connector_rs::rest::{OrderlyService, Credentials};
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let client = Client::new(
-///         "your_api_key".to_string(),
-///         "your_secret".to_string(),
-///         "your_account_id".to_string(),
+///     let service = OrderlyService::new(
 ///         true, // is_testnet
 ///         None, // timeout_sec
-///     ).expect("Failed to create client");
+///     ).expect("Failed to create service");
 ///
-///     // Get system status
-///     let status = client.get_system_status().await.expect("Failed to get status");
+///     // Example: Get system status (public)
+///     let status = service.get_system_status().await.expect("Failed to get status");
 ///     println!("System status: {:?}", status);
+///
+///     // Example: Get account info (private)
+///     let user_creds = Credentials {
+///         orderly_key: "your_api_key",
+///         orderly_secret: "your_secret",
+///         orderly_account_id: "your_account_id",
+///     };
+///     // Assuming get_account_info is updated to take Credentials
+///     // let account_info = service.get_account_info(&user_creds).await.expect("Failed to get account info");
+///     // println!("Account info: {:?}", account_info);
 /// }
 /// ```
 #[derive(Clone)]
-pub struct Client {
+pub struct OrderlyService {
     /// The underlying HTTP client used for making requests.
     http_client: HttpClient,
     /// The base URL for the Orderly API (either mainnet or testnet).
     base_url: Url,
-    /// The public API key provided by Orderly Network.
-    orderly_key: String,
-    /// The private API secret provided by Orderly Network, used for signing requests.
-    orderly_secret: String,
-    /// The user's unique account identifier on Orderly Network.
-    orderly_account_id: String,
+    // User-specific fields removed
     // timeout is configured directly in the HttpClient
 }
 
-impl Client {
-    /// Creates a new Orderly REST API client.
+impl OrderlyService {
+    /// Creates a new Orderly REST API service.
     ///
     /// # Arguments
     ///
-    /// * `orderly_key` - Your Orderly API key public key
-    /// * `orderly_secret` - Your Orderly API secret - private key
-    /// * `orderly_account_id` - Your Orderly account ID
     /// * `is_testnet` - Whether to use testnet (true) or mainnet (false)
     /// * `timeout_sec` - Optional timeout in seconds for HTTP requests
     ///
     /// # Returns
     ///
-    /// A `Result` containing the configured client or an error if initialization fails.
+    /// A `Result` containing the configured service or an error if initialization fails.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use orderly_connector_rs::rest::Client;
+    /// use orderly_connector_rs::rest::OrderlyService;
     ///
-    /// let client = Client::new(
-    ///     "your_api_key".to_string(),
-    ///     "your_secret".to_string(),
-    ///     "your_account_id".to_string(),
+    /// let service = OrderlyService::new(
     ///     true, // is_testnet
     ///     Some(30), // timeout_sec
-    /// ).expect("Failed to create client");
+    /// ).expect("Failed to create service");
     /// ```
-    pub fn new(
-        orderly_key: String,
-        orderly_secret: String,
-        orderly_account_id: String,
-        is_testnet: bool,
-        timeout_sec: Option<u64>,
-    ) -> Result<Self> {
+    pub fn new(is_testnet: bool, timeout_sec: Option<u64>) -> Result<Self> {
         let base_url_str = if is_testnet {
             TESTNET_API_URL
         } else {
@@ -103,15 +105,13 @@ impl Client {
         Ok(Self {
             http_client,
             base_url,
-            orderly_key,
-            orderly_secret,
-            orderly_account_id,
         })
     }
 
-    /// Builds a signed reqwest::Request.
+    /// Builds a signed reqwest::Request using provided credentials.
     async fn build_signed_request<T: Serialize>(
         &self,
+        creds: &Credentials<'_>, // Accept credentials
         method: Method,
         path: &str,
         body: Option<T>,
@@ -125,24 +125,27 @@ impl Client {
         };
 
         let message_to_sign = format!("{}{}{}{}", timestamp, method.as_str(), path, body_str);
-        let signature = auth::generate_signature(&self.orderly_secret, &message_to_sign)?;
+        // Use credentials passed in
+        let signature = auth::generate_signature(creds.orderly_secret, &message_to_sign)?;
 
         let mut headers = HeaderMap::new();
         headers.insert(
             HeaderName::from_static("orderly-timestamp"),
             HeaderValue::from(timestamp),
         );
+        // Use credentials passed in
         headers.insert(
             HeaderName::from_static("orderly-key"),
-            HeaderValue::from_str(&self.orderly_key)?,
+            HeaderValue::from_str(creds.orderly_key)?,
         );
         headers.insert(
             HeaderName::from_static("orderly-signature"),
             HeaderValue::from_str(&signature)?,
         );
+        // Use credentials passed in
         headers.insert(
             HeaderName::from_static("orderly-account-id"),
-            HeaderValue::from_str(&self.orderly_account_id)?,
+            HeaderValue::from_str(creds.orderly_account_id)?,
         );
         headers.insert(
             reqwest::header::CONTENT_TYPE,
@@ -155,7 +158,7 @@ impl Client {
             request_builder = request_builder.json(&b);
         }
 
-        Ok(request_builder.build()?)
+        Ok(request_builder.build()?) // Propagates reqwest::Error
     }
 
     /// Sends a request and handles the response, parsing success or error.
@@ -312,11 +315,11 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::Client;
+    /// # use orderly_connector_rs::rest::OrderlyService;
     /// # #[tokio::main]
     /// # async fn main() {
-    /// # let client = Client::new("key".to_string(), "secret".to_string(), "account".to_string(), true, None).unwrap();
-    /// let status = client.get_system_status().await.expect("Failed to get status");
+    /// # let service = OrderlyService::new(true, None).unwrap();
+    /// let status = service.get_system_status().await.expect("Failed to get status");
     /// println!("System status: {:?}", status);
     /// # }
     /// ```
@@ -345,15 +348,15 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::Client;
+    /// # use orderly_connector_rs::rest::OrderlyService;
     /// # #[tokio::main]
     /// # async fn main() {
-    /// # let client = Client::new("key".to_string(), "secret".to_string(), "account".to_string(), true, None).unwrap();
+    /// # let service = OrderlyService::new(true, None).unwrap();
     /// // Get info for all symbols
-    /// let all_info = client.get_exchange_info(None).await.expect("Failed to get info");
+    /// let all_info = service.get_exchange_info(None).await.expect("Failed to get info");
     ///
     /// // Get info for a specific symbol
-    /// let symbol_info = client.get_exchange_info(Some("PERP_ETH_USDC")).await.expect("Failed to get symbol info");
+    /// let symbol_info = service.get_exchange_info(Some("PERP_ETH_USDC")).await.expect("Failed to get symbol info");
     /// # }
     /// ```
     ///
@@ -384,119 +387,137 @@ impl Client {
 
     // --- Private Endpoints (Orders) ---
 
-    /// Creates a new order.
+    /// Creates a new order for the specified user.
     /// Corresponds to POST /v1/order
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/create-order
     pub async fn create_order(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         order_req: CreateOrderRequest<'_>,
     ) -> Result<CreateOrderResponse> {
         let request = self
-            .build_signed_request(Method::POST, "/v1/order", Some(order_req))
+            .build_signed_request(creds, Method::POST, "/v1/order", Some(order_req)) // Pass creds
             .await?;
         self.send_request::<CreateOrderResponse>(request).await
     }
 
-    /// Retrieves a specific order by its ID.
+    /// Retrieves a specific order by its ID for the specified user.
     /// Corresponds to GET /v1/order/{order_id}
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-order
-    pub async fn get_order(&self, order_id: u64) -> Result<GetOrderResponse> {
+    pub async fn get_order(
+        &self,
+        creds: &Credentials<'_>, // Added credentials parameter
+        order_id: u64,
+    ) -> Result<GetOrderResponse> {
         let path = format!("/v1/order/{}", order_id);
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetOrderResponse>(request).await
     }
 
-    /// Cancels an existing order by its ID.
+    /// Cancels an existing order by its ID for the specified user.
     /// Corresponds to DELETE /v1/order?order_id={order_id}&symbol={symbol}
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/cancel-order
-    pub async fn cancel_order(&self, order_id: u64, symbol: &str) -> Result<CancelOrderResponse> {
+    pub async fn cancel_order(
+        &self,
+        creds: &Credentials<'_>, // Added credentials parameter
+        order_id: u64,
+        symbol: &str,
+    ) -> Result<CancelOrderResponse> {
         let path = format!("/v1/order?order_id={}&symbol={}", order_id, symbol);
         let request = self
-            .build_signed_request::<()>(Method::DELETE, &path, None)
+            .build_signed_request::<()>(creds, Method::DELETE, &path, None) // Pass creds
             .await?;
         self.send_request::<CancelOrderResponse>(request).await
     }
 
-    /// Retrieves multiple orders based on filter parameters.
+    /// Retrieves multiple orders for the specified user based on filter parameters.
     /// Corresponds to GET /v1/orders
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-orders
     pub async fn get_orders(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         params: Option<GetOrdersParams<'_>>,
     ) -> Result<GetOrdersResponse> {
         let mut path = "/v1/orders".to_string();
         if let Some(p) = params {
-            // TODO: Implement proper query string building from GetOrdersParams
-            // For now, assumes no params or manual construction if needed
             if let Ok(query) = serde_qs::to_string(&p) {
                 if !query.is_empty() {
                     path.push('?');
                     path.push_str(&query);
                 }
             } else {
-                // Handle serialization error if necessary
                 warn!("Failed to serialize GetOrdersParams to query string");
             }
         }
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetOrdersResponse>(request).await
     }
 
     // ===== Account Information =====
 
-    /// Get current account information.
+    /// Get current account information for the specified user.
     /// GET /v1/client/info
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-account-info
-    pub async fn get_account_info(&self) -> Result<GetAccountInfoResponse> {
+    pub async fn get_account_info(
+        &self,
+        creds: &Credentials<'_>, // Added credentials parameter
+    ) -> Result<GetAccountInfoResponse> {
         let request = self
-            .build_signed_request::<()>(Method::GET, "/v1/client/info", None)
+            .build_signed_request::<()>(creds, Method::GET, "/v1/client/info", None) // Pass creds
             .await?;
         self.send_request::<GetAccountInfoResponse>(request).await
     }
 
     // ===== Holdings / Balances =====
 
-    /// Get current holdings (balances) for all tokens.
+    /// Get current holdings (balances) for all tokens for the specified user.
     /// GET /v1/client/holding
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-holding
-    pub async fn get_holding(&self) -> Result<GetHoldingResponse> {
+    pub async fn get_holding(&self, creds: &Credentials<'_>) -> Result<GetHoldingResponse> {
+        // Added credentials parameter
         let request = self
-            .build_signed_request::<()>(Method::GET, "/v1/client/holding", None)
+            .build_signed_request::<()>(creds, Method::GET, "/v1/client/holding", None) // Pass creds
             .await?;
         self.send_request::<GetHoldingResponse>(request).await
     }
 
     // ===== Positions =====
 
-    /// Get all current positions.
+    /// Get all current positions for the specified user.
     /// GET /v1/positions
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-all-positions-info
-    pub async fn get_positions(&self) -> Result<GetPositionsResponse> {
+    pub async fn get_positions(&self, creds: &Credentials<'_>) -> Result<GetPositionsResponse> {
+        // Added credentials parameter
         let request = self
-            .build_signed_request::<()>(Method::GET, "/v1/positions", None)
+            .build_signed_request::<()>(creds, Method::GET, "/v1/positions", None) // Pass creds
             .await?;
         self.send_request::<GetPositionsResponse>(request).await
     }
 
-    /// Get position for a specific symbol.
+    /// Get position for a specific symbol for the specified user.
     /// GET /v1/position/{symbol}
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-one-position-info
-    pub async fn get_position(&self, symbol: &str) -> Result<GetSinglePositionResponse> {
+    pub async fn get_position(
+        &self,
+        creds: &Credentials<'_>,
+        symbol: &str,
+    ) -> Result<GetSinglePositionResponse> {
+        // Added credentials parameter
         let path = format!("/v1/position/{}", symbol);
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetSinglePositionResponse>(request)
             .await
@@ -504,17 +525,17 @@ impl Client {
 
     // ===== Asset History (Deposits/Withdrawals) =====
 
-    /// Get asset history (deposits, withdrawals).
+    /// Get asset history (deposits, withdrawals) for the specified user.
     /// GET /v1/asset/history
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-asset-history
     pub async fn get_asset_history(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         params: Option<GetAssetHistoryParams<'_>>,
     ) -> Result<GetAssetHistoryResponse> {
         let mut path = "/v1/asset/history".to_string();
         if let Some(p) = params {
-            // TODO: Implement proper query string building from GetAssetHistoryParams
             if let Ok(query) = serde_qs::to_string(&p) {
                 if !query.is_empty() {
                     path.push('?');
@@ -525,24 +546,24 @@ impl Client {
             }
         }
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetAssetHistoryResponse>(request).await
     }
 
     // ===== Trades =====
 
-    /// Get trade history.
+    /// Get trade history for the specified user.
     /// GET /v1/trades
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-trades
     pub async fn get_trades(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         params: Option<GetTradesParams<'_>>,
     ) -> Result<GetTradesResponse> {
         let mut path = "/v1/trades".to_string();
         if let Some(p) = params {
-            // TODO: Implement proper query string building from GetTradesParams
             if let Ok(query) = serde_qs::to_string(&p) {
                 if !query.is_empty() {
                     path.push('?');
@@ -553,32 +574,36 @@ impl Client {
             }
         }
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetTradesResponse>(request).await
     }
 
-    /// Get specific trade by ID.
+    /// Get specific trade by ID for the specified user.
     /// GET /v1/trade/{trade_id}
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-trade
-    pub async fn get_trade(&self, trade_id: u64) -> Result<Value> {
+    pub async fn get_trade(&self, creds: &Credentials<'_>, trade_id: u64) -> Result<Value> {
+        // Added credentials parameter
         let path = format!("/v1/trade/{}", trade_id);
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<Value>(request).await
     }
 
     // ===== Client Statistics =====
 
-    /// Get client statistics (e.g., 30d volume, VIP tier).
+    /// Get client statistics (e.g., 30d volume, VIP tier) for the specified user.
     /// GET /v1/client/statistics
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-client-statistics
-    pub async fn get_client_statistics(&self) -> Result<GetClientStatisticsResponse> {
+    pub async fn get_client_statistics(
+        &self,
+        creds: &Credentials<'_>, // Added credentials parameter
+    ) -> Result<GetClientStatisticsResponse> {
         let request = self
-            .build_signed_request::<()>(Method::GET, "/v1/client/statistics", None)
+            .build_signed_request::<()>(creds, Method::GET, "/v1/client/statistics", None) // Pass creds
             .await?;
         self.send_request::<GetClientStatisticsResponse>(request)
             .await
@@ -588,16 +613,22 @@ impl Client {
 
     // ===== Withdrawals =====
 
-    /// Request a withdrawal.
+    /// Request a withdrawal for the specified user.
     /// POST /v1/withdraw_request
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/request-withdrawal
     pub async fn request_withdrawal(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         withdraw_req: WithdrawRequest<'_>,
     ) -> Result<WithdrawResponse> {
         let request = self
-            .build_signed_request(Method::POST, "/v1/withdraw_request", Some(withdraw_req))
+            .build_signed_request(
+                creds,
+                Method::POST,
+                "/v1/withdraw_request",
+                Some(withdraw_req),
+            ) // Pass creds
             .await?;
         self.send_request::<WithdrawResponse>(request).await
     }
@@ -605,25 +636,27 @@ impl Client {
 
     // ===== Fee Rates =====
 
-    /// Get current fee rates for the user.
+    /// Get current fee rates for the specified user.
     /// GET /v1/client/fee_rates
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-fee-rates
-    pub async fn get_fee_rates(&self) -> Result<GetFeeRatesResponse> {
+    pub async fn get_fee_rates(&self, creds: &Credentials<'_>) -> Result<GetFeeRatesResponse> {
+        // Added credentials parameter
         let request = self
-            .build_signed_request::<()>(Method::GET, "/v1/client/fee_rates", None)
+            .build_signed_request::<()>(creds, Method::GET, "/v1/client/fee_rates", None) // Pass creds
             .await?;
         self.send_request::<GetFeeRatesResponse>(request).await
     }
 
     // ===== Liquidations =====
 
-    /// Get liquidation history for the user's positions.
+    /// Get liquidation history for the specified user's positions.
     /// GET /v1/liquidations
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-liquidations
     pub async fn get_liquidations(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         params: Option<GetLiquidationsParams<'_>>,
     ) -> Result<GetLiquidationsResponse> {
         let mut path = "/v1/liquidations".to_string();
@@ -638,19 +671,20 @@ impl Client {
             }
         }
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetLiquidationsResponse>(request).await
     }
 
     // ===== PnL Settlement =====
 
-    /// Get PnL settlement history.
+    /// Get PnL settlement history for the specified user.
     /// GET /v1/settlements
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-settlement-history
     pub async fn get_settlement_history(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         params: Option<GetSettlementsParams<'_>>,
     ) -> Result<GetSettlementsResponse> {
         let mut path = "/v1/settlements".to_string();
@@ -665,19 +699,20 @@ impl Client {
             }
         }
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetSettlementsResponse>(request).await
     }
 
     // ===== Funding Fee =====
 
-    /// Get funding fee history.
+    /// Get funding fee history for the specified user.
     /// GET /v1/funding_fee/history
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-funding-fee-history
     pub async fn get_funding_fee_history(
         &self,
+        creds: &Credentials<'_>, // Added credentials parameter
         symbol: &str,
         params: Option<GetFundingFeeParams>,
     ) -> Result<GetFundingFeeHistoryResponse> {
@@ -693,7 +728,7 @@ impl Client {
             }
         }
         let request = self
-            .build_signed_request::<()>(Method::GET, &path, None)
+            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
             .await?;
         self.send_request::<GetFundingFeeHistoryResponse>(request)
             .await

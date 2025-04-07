@@ -1,5 +1,6 @@
 // examples/rest_public.rs
-use orderly_connector_rs::rest::Client;
+use orderly_connector_rs::rest::client::Credentials;
+use orderly_connector_rs::rest::OrderlyService;
 use std::env;
 
 #[tokio::main]
@@ -18,8 +19,14 @@ async fn main() {
         .expect("ORDERLY_TESTNET must be true or false");
 
     // Initialize the client
-    let client = Client::new(api_key, secret, account_id, is_testnet, None)
-        .expect("Failed to create REST client");
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
+
+    // Create credentials for authenticated endpoints
+    let creds = Credentials {
+        orderly_key: &api_key,
+        orderly_secret: &secret,
+        orderly_account_id: &account_id,
+    };
 
     println!("Using Testnet: {}", is_testnet);
 
