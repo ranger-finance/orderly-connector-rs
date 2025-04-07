@@ -34,28 +34,38 @@ pub struct Credentials<'a> {
 /// # Examples
 ///
 /// ```no_run
-/// use orderly_connector_rs::rest::{OrderlyService, Credentials};
+/// use orderly_connector_rs::rest::OrderlyService;
+/// use std::sync::Arc;
+/// use orderly_connector_rs::error::Result;
 ///
 /// #[tokio::main]
-/// async fn main() {
-///     let service = OrderlyService::new(
-///         true, // is_testnet
-///         None, // timeout_sec
-///     ).expect("Failed to create service");
+/// async fn main() -> Result<()> {
+///     // Optional: Load credentials from .env file
+///     // dotenv::dotenv().ok();
+///     // let api_key = std::env::var("ORDERLY_API_KEY").expect("ORDERLY_API_KEY not set");
+///     // let secret = std::env::var("ORDERLY_SECRET").expect("ORDERLY_SECRET not set");
+///     // let account_id = std::env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
+///     // Example credentials (replace with actual values or load from env)
+///     // use orderly_connector_rs::rest::client::Credentials;
+///     // let creds = Credentials {
+///     //     orderly_key: api_key,
+///     //     orderly_secret: secret,
+///     //     orderly_account_id: account_id,
+///     // };
 ///
-///     // Example: Get system status (public)
-///     let status = service.get_system_status().await.expect("Failed to get status");
-///     println!("System status: {:?}", status);
+///     // Create a new service for the testnet, no timeout
+///     let service = OrderlyService::new(true, None)?;
 ///
-///     // Example: Get account info (private)
-///     let user_creds = Credentials {
-///         orderly_key: "your_api_key",
-///         orderly_secret: "your_secret",
-///         orderly_account_id: "your_account_id",
-///     };
-///     // Assuming get_account_info is updated to take Credentials
-///     // let account_info = service.get_account_info(&user_creds).await.expect("Failed to get account info");
-///     // println!("Account info: {:?}", account_info);
+///     // Example: Get system status (public endpoint, no credentials needed)
+///     let status = service.get_system_status().await?;
+///     println!("System Status: {:?}", status);
+///
+///     // To call private endpoints, ensure credentials are loaded (e.g., via .env)
+///     // and use methods that require authentication, like get_account_info.
+///     // let account_info = service.get_account_info().await?;
+///     // println!("Account Info: {:?}", account_info);
+///
+///     Ok(())
 /// }
 /// ```
 #[derive(Clone)]

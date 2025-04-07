@@ -45,16 +45,6 @@ pub fn get_timestamp_ms() -> Result<u64> {
 /// * The base58 decoding fails
 /// * The decoded key is not exactly 32 bytes
 ///
-/// # Examples
-///
-/// ```no_run
-/// use orderly_connector_rs::auth::parse_secret_key;
-///
-/// // Both formats are supported:
-/// let secret_key1 = "ed25519:your_base58_private_key";
-/// let secret_key2 = "your_base58_private_key";
-/// let key_bytes = parse_secret_key(secret_key1).expect("Failed to parse secret key");
-/// ```
 fn parse_secret_key(secret_key_str: &str) -> Result<[u8; 32]> {
     // Extract the base58 portion, handling both formats
     let base58_key = if secret_key_str.starts_with("ed25519:") {

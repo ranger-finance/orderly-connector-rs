@@ -6,12 +6,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::net::TcpStream;
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 use tokio_tungstenite::{
-    connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
+    connect_async, tungstenite::protocol::Message,
 };
 use url::Url;
 
@@ -421,8 +420,8 @@ impl WebsocketPublicClient {
 ///         close_handler,
 ///     ).await.expect("Failed to connect");
 ///
-///     // Subscribe to account updates
-///     client.subscribe_account().await.expect("Failed to subscribe");
+///     // Subscribe to account updates (now using balance)
+///     client.subscribe_balance().await.expect("Failed to subscribe to balance");
 /// }
 /// ```
 pub struct WebsocketPrivateClient {

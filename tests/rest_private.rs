@@ -7,7 +7,6 @@ use orderly_connector_rs::rest::OrderlyService;
 use orderly_connector_rs::types::{
     CreateOrderRequest, GetOrdersParams, OrderStatus, OrderType, Side,
 };
-use std::env;
 use tokio::time::{sleep, Duration};
 
 fn setup_client() -> (OrderlyService, Credentials<'static>) {
