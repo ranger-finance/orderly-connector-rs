@@ -301,6 +301,7 @@ impl WebsocketPublicClient {
     }
 
     /// Sends a raw JSON message to the WebSocket server if connected.
+    #[allow(dead_code)]
     async fn send_json(&self, json_value: Value) -> Result<()> {
         let msg_str = serde_json::to_string(&json_value)?;
         self.send_str(&msg_str).await
@@ -591,6 +592,7 @@ impl WebsocketPrivateClient {
     }
 
     /// Sends a raw JSON message (helper).
+    #[allow(dead_code)]
     async fn send_json(&self, json_value: Value) -> Result<()> {
         let msg_str = serde_json::to_string(&json_value)?;
         self.send_str(&msg_str).await
