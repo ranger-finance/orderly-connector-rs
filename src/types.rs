@@ -545,3 +545,58 @@ pub struct GetSettlementsResponseData {
 }
 
 pub type GetSettlementsResponse = SuccessResponse<GetSettlementsResponseData>;
+
+// ===== Funding Fee =====
+
+/// Parameters for retrieving funding fee history.
+///
+/// # Fields
+///
+/// * `start_t` - Optional start timestamp in milliseconds.
+/// * `end_t` - Optional end timestamp in milliseconds.
+/// * `page` - Optional page number for pagination.
+/// * `size` - Optional number of records per page (Default: 60).
+#[derive(Serialize, Debug, Clone, Default)]
+pub struct GetFundingFeeParams {
+    // Symbol is passed directly in the path, not as a query param here.
+    // pub symbol: Option<&'a str>, // This is incorrect based on client implementation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_t: Option<u64>, // Timestamp ms
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u32>,
+    // Ensure the lifetime is used if needed, though serde_qs might handle owned data better.
+    // Using PhantomData if no borrowed fields remain, but start_t/end_t etc. are owned.
+    // #[serde(skip_serializing)] // Skip serializing this marker
+    // _marker: std::marker::PhantomData<&'a ()>, // Use PhantomData to satisfy lifetime checker
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct FundingFeeEntry {
+    pub id: u64, // Assuming an ID field exists
+    pub symbol: String,
+    pub funding_rate: f64,
+    pub funding_fee: f64,             // Amount paid/received
+    pub payment_type: Option<String>, // e.g., "Pay", "Receive"
+    pub position_qty: Option<f64>,    // Position size at the time
+    pub mark_price: Option<f64>,      // Mark price at the time
+    pub timestamp: u64,               // Timestamp of the funding event
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetFundingFeeHistoryResponseData {
+    pub rows: Vec<FundingFeeEntry>,
+    pub meta: Option<PaginationMeta>,
+}
+
+// Define a proper response struct for GetFundingFeeHistoryResponse
+pub type GetFundingFeeHistoryResponse = SuccessResponse<GetFundingFeeHistoryResponseData>;
+
+// ===== Algo Orders =====
+
+// TODO: Define request/response structs for Algo Orders
+// pub struct CreateAlgoOrderRequest ...
+// pub type CreateAlgoOrderResponse = SuccessResponse<...>;
