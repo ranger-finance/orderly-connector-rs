@@ -5,6 +5,14 @@ mod common;
 
 use orderly_connector_rs::rest::OrderlyService;
 
+/// Tests the system status endpoint of the Orderly Network API.
+///
+/// This test verifies that:
+/// - The API client can successfully connect to the system status endpoint
+/// - The response contains a success flag set to true
+/// - The response data is a valid object with a status field equal to 0
+///
+/// Note: This test is ignored by default as it requires network access and credentials.
 #[tokio::test]
 #[ignore] // Ignored by default as it requires network access and credentials
 async fn test_get_system_status() {
@@ -23,6 +31,15 @@ async fn test_get_system_status() {
     assert_eq!(status_resp["data"]["status"].as_i64(), Some(0));
 }
 
+/// Tests the exchange information endpoint for all trading instruments.
+///
+/// This test verifies that:
+/// - The API can retrieve information about all available trading instruments
+/// - The response contains a valid array of instruments
+/// - Each instrument has the required fields (symbol, base_min, base_max, etc.)
+/// - The field types match the expected format (strings, numbers)
+///
+/// Note: This test is ignored by default as it requires network access.
 #[tokio::test]
 #[ignore] // Ignored by default as it requires network access
 async fn test_get_exchange_info_all() {
@@ -108,6 +125,15 @@ async fn test_get_exchange_info_all() {
     );
 }
 
+/// Tests the exchange information endpoint for a specific trading instrument.
+///
+/// This test verifies that:
+/// - The API can retrieve information for a specific symbol (PERP_ETH_USDC)
+/// - The response contains valid data for the requested symbol
+/// - The response structure matches the expected format
+///
+/// Note: This test is ignored by default and assumes the specified symbol exists
+/// on the selected network (testnet/mainnet).
 #[tokio::test]
 #[ignore] // Ignored by default
 async fn test_get_exchange_info_specific() {
@@ -143,6 +169,17 @@ async fn test_get_exchange_info_specific() {
     );
 }
 
+/// Tests the funding rate history endpoint.
+///
+/// This test verifies that:
+/// - The API can retrieve historical funding rate data
+/// - The response contains valid funding rate records
+/// - Each record has required fields (symbol, data_start_time)
+/// - Funding rates are within reasonable bounds (-1.0 to 1.0)
+/// - One-day statistics contain valid positive/negative counts
+/// - Both reference and consuming iterators work correctly on the response data
+///
+/// Note: This test is ignored by default as it requires network access.
 #[tokio::test]
 #[ignore] // Ignored by default as it requires network access
 async fn test_get_funding_rate_history() {
