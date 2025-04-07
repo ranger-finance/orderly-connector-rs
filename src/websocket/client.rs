@@ -9,9 +9,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
-use tokio_tungstenite::{
-    connect_async, tungstenite::protocol::Message,
-};
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
 
 const MAINNET_WS_PUBLIC_URL: &str = "wss://ws.orderly.network/ws/stream";
