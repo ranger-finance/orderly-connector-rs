@@ -143,4 +143,54 @@ async fn test_get_exchange_info_specific() {
     );
 }
 
+#[tokio::test]
+#[ignore] // Ignored by default as it requires network access
+async fn test_get_funding_rate_history() {
+    common::setup();
+    let is_testnet = common::get_testnet_flag();
+
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
+
+    let result = client.get_funding_rate_history().await;
+    println!("Funding Rate History Result: {:#?}", result);
+    assert!(result.is_ok());
+
+    let history_resp = result.unwrap();
+    assert!(history_resp.success);
+    assert!(
+        !history_resp.data.rows.is_empty(),
+        "Should have at least one market"
+    );
+
+    // Check the first market's data
+    let first_market = &history_resp.data.rows[0];
+    assert!(
+        !first_market.symbol.is_empty(),
+        "Symbol should not be empty"
+    );
+    assert!(
+        !first_market.data_start_time.is_empty(),
+        "Start time should not be empty"
+    );
+
+    // Check that funding rate data exists for all periods
+    let funding = &first_market.funding;
+    assert!(
+        funding.last.rate.abs() <= 1.0,
+        "Funding rate should be reasonable"
+    );
+
+    // Check one_day if it exists
+    if let Some(one_day) = &funding.one_day {
+        assert!(
+            one_day.positive >= 0,
+            "Positive count should be non-negative"
+        );
+        assert!(
+            one_day.negative >= 0,
+            "Negative count should be non-negative"
+        );
+    }
+}
+
 // Add more tests for other public endpoints like get_futures_info...

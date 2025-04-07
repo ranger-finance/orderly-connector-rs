@@ -595,6 +595,48 @@ pub struct GetFundingFeeHistoryResponseData {
 // Define a proper response struct for GetFundingFeeHistoryResponse
 pub type GetFundingFeeHistoryResponse = SuccessResponse<GetFundingFeeHistoryResponseData>;
 
+// ===== Funding Rate History =====
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct FundingRateData {
+    pub rate: f64,
+    pub positive: i32,
+    pub negative: i32,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct FundingRateHistory {
+    pub symbol: String,
+    pub data_start_time: String,
+    pub funding: FundingRateHistoryPeriods,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct FundingRateHistoryPeriods {
+    pub last: FundingRateData,
+    #[serde(rename = "1d")]
+    pub one_day: Option<FundingRateData>,
+    #[serde(rename = "3d")]
+    pub three_day: Option<FundingRateData>,
+    #[serde(rename = "7d")]
+    pub seven_day: Option<FundingRateData>,
+    #[serde(rename = "14d")]
+    pub fourteen_day: Option<FundingRateData>,
+    #[serde(rename = "30d")]
+    pub thirty_day: Option<FundingRateData>,
+    #[serde(rename = "90d")]
+    pub ninety_day: Option<FundingRateData>,
+    #[serde(rename = "180d")]
+    pub one_eighty_day: Option<FundingRateData>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetFundingRateHistoryResponseData {
+    pub rows: Vec<FundingRateHistory>,
+}
+
+pub type GetFundingRateHistoryResponse = SuccessResponse<GetFundingRateHistoryResponseData>;
+
 // ===== Algo Orders =====
 
 // TODO: Define request/response structs for Algo Orders

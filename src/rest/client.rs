@@ -395,6 +395,36 @@ impl OrderlyService {
         self.send_public_request(request).await
     }
 
+    /// Get funding rate history for all markets.
+    /// GET /v1/public/market_info/funding_history
+    ///
+    /// This endpoint provides funding rate history information for all markets, including
+    /// rates for different time periods (last, 1d, 3d, 7d, 14d, 30d, 90d, 180d).
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the funding rate history information for all markets.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::OrderlyService;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let service = OrderlyService::new(true, None).unwrap();
+    /// let funding_rates = service.get_funding_rate_history().await.expect("Failed to get funding rates");
+    /// println!("Funding rates: {:?}", funding_rates);
+    /// # }
+    /// ```
+    ///
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-funding-rate-for-all-markets
+    pub async fn get_funding_rate_history(&self) -> Result<GetFundingRateHistoryResponse> {
+        let path = "/v1/public/market_info/funding_history";
+        let url = self.base_url.join(path)?;
+        let request = self.http_client.get(url).build()?;
+        self.send_public_request(request).await
+    }
+
     // --- Private Endpoints (Orders) ---
 
     /// Creates a new order for the specified user.
