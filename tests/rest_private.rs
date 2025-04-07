@@ -40,7 +40,6 @@ async fn test_create_get_cancel_order() {
     let (client, creds) = setup_client();
     let symbol = "PERP_ETH_USDC"; // Testnet symbol
 
-    let mut created_order_id: Option<u64> = None;
     println!("Creating order for symbol: {}", symbol);
 
     // Create a limit buy order
@@ -55,27 +54,25 @@ async fn test_create_get_cancel_order() {
         visible_quantity: None,
     };
 
-    match client.create_order(&creds, order_req).await {
+    let created_order_id = match client.create_order(&creds, order_req).await {
         Ok(resp) => {
             println!("Create Order Response: {:#?}", resp);
             assert!(resp.success, "Order creation should succeed");
-            created_order_id = Some(resp.data.order_id);
+            resp.data.order_id // Assign directly
         }
         Err(e) => panic!("Failed to create order: {}", e),
-    }
+    };
 
     // Give order time to appear
     sleep(Duration::from_secs(2)).await;
 
     // Get the order details
-    if let Some(id) = created_order_id {
-        match client.get_order(&creds, id).await {
-            Ok(resp) => {
-                println!("Get Order Response: {:#?}", resp);
-                assert_eq!(resp.data.order.symbol, symbol);
-            }
-            Err(e) => panic!("Failed to get order {}: {}", id, e),
+    match client.get_order(&creds, created_order_id).await {
+        Ok(resp) => {
+            println!("Get Order Response: {:#?}", resp);
+            assert_eq!(resp.data.order.symbol, symbol);
         }
+        Err(e) => panic!("Failed to get order {}: {}", created_order_id, e),
     }
 
     // Get all orders for the symbol
@@ -86,40 +83,40 @@ async fn test_create_get_cancel_order() {
     match client.get_orders(&creds, Some(params)).await {
         Ok(resp) => {
             println!("Get Orders Response: {:#?}", resp);
-            if let Some(id) = created_order_id {
-                assert!(
-                    resp.data.rows.iter().any(|order| order.order_id == id),
-                    "Created order should be in the list"
-                );
-            }
+            assert!(
+                resp.data
+                    .rows
+                    .iter()
+                    .any(|order| order.order_id == created_order_id),
+                "Created order should be in the list"
+            );
         }
         Err(e) => panic!("Failed to get orders: {}", e),
     }
 
     // Cancel the order
-    if let Some(id) = created_order_id {
-        match client.cancel_order(&creds, id, symbol).await {
-            Ok(resp) => {
-                println!("Cancel Order Response: {:#?}", resp);
-                assert!(resp.success, "Order cancellation should succeed");
-            }
-            Err(e) => panic!("Failed to cancel order {}: {}", id, e),
+    match client.cancel_order(&creds, created_order_id, symbol).await {
+        Ok(resp) => {
+            println!("Cancel Order Response: {:#?}", resp);
+            assert!(resp.success, "Order cancellation should succeed");
         }
+        Err(e) => panic!("Failed to cancel order {}: {}", created_order_id, e),
     }
 
     // Verify the order is cancelled
-    if let Some(id) = created_order_id {
-        match client.get_order(&creds, id).await {
-            Ok(resp) => {
-                println!("Get Order Response after cancel: {:#?}", resp);
-                assert_eq!(
-                    resp.data.order.status,
-                    OrderStatus::Cancelled,
-                    "Order should be cancelled"
-                );
-            }
-            Err(e) => panic!("Failed to get order {} after cancel: {}", id, e),
+    match client.get_order(&creds, created_order_id).await {
+        Ok(resp) => {
+            println!("Get Order Response after cancel: {:#?}", resp);
+            assert_eq!(
+                resp.data.order.status,
+                OrderStatus::Cancelled,
+                "Order should be cancelled"
+            );
         }
+        Err(e) => panic!(
+            "Failed to get order {} after cancel: {}",
+            created_order_id, e
+        ),
     }
 }
 
