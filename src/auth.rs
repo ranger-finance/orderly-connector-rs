@@ -27,7 +27,9 @@ pub fn get_timestamp_ms() -> Result<u64> {
 
 /// Parses the Orderly secret key string into its raw byte representation.
 ///
-/// The secret key string should be in the format "ed25519:<base58_private_key>".
+/// The secret key string can be either:
+/// * A raw base58 private key string
+/// * A string in the format "ed25519:<base58_private_key>"
 ///
 /// # Arguments
 ///
@@ -40,7 +42,6 @@ pub fn get_timestamp_ms() -> Result<u64> {
 /// # Errors
 ///
 /// Returns an error if:
-/// * The secret key doesn't start with "ed25519:"
 /// * The base58 decoding fails
 /// * The decoded key is not exactly 32 bytes
 ///
@@ -49,16 +50,19 @@ pub fn get_timestamp_ms() -> Result<u64> {
 /// ```no_run
 /// use orderly_connector_rs::auth::parse_secret_key;
 ///
-/// let secret_key = "ed25519:your_base58_private_key";
-/// let key_bytes = parse_secret_key(secret_key).expect("Failed to parse secret key");
+/// // Both formats are supported:
+/// let secret_key1 = "ed25519:your_base58_private_key";
+/// let secret_key2 = "your_base58_private_key";
+/// let key_bytes = parse_secret_key(secret_key1).expect("Failed to parse secret key");
 /// ```
 fn parse_secret_key(secret_key_str: &str) -> Result<[u8; 32]> {
-    if !secret_key_str.starts_with("ed25519:") {
-        return Err(OrderlyError::AuthenticationError(
-            "Invalid secret key format: Missing 'ed25519:' prefix".to_string(),
-        ));
-    }
-    let base58_key = &secret_key_str[8..];
+    // Extract the base58 portion, handling both formats
+    let base58_key = if secret_key_str.starts_with("ed25519:") {
+        &secret_key_str[8..]
+    } else {
+        secret_key_str
+    };
+
     let decoded_bytes = bs58::decode(base58_key).into_vec().map_err(|e| {
         OrderlyError::AuthenticationError(format!("Failed to decode base58 secret key: {}", e))
     })?;
@@ -112,8 +116,7 @@ mod tests {
     // Note: These tests require a valid (but not necessarily real) key pair for testing.
     // Replace with actual test vectors if available, or generate a throwaway pair for testing.
     const TEST_SECRET_KEY_STR: &str = "ed25519:2wyRcTuEuip6nLoNmfKvmkxMgC7zLbW8DH4PPQT5hWKd"; // Example, NOT a real secret
-                                                                                              // Corresponding public key (not needed for signing test, but good for context):
-                                                                                              // const TEST_PUBLIC_KEY_STR: &str = "ed25519:FyWdUuNubF8LhDbV34qzV7uXRU51jBLN8YsnK9Z8pZbF";
+    const TEST_SECRET_KEY_NO_PREFIX: &str = "2wyRcTuEuip6nLoNmfKvmkxMgC7zLbW8DH4PPQT5hWKd"; // Same key without prefix
 
     #[test]
     fn test_get_timestamp_ms_works() {
@@ -123,24 +126,22 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_secret_key_valid() {
-        let key_bytes = parse_secret_key(TEST_SECRET_KEY_STR).expect("Failed to parse valid key");
+    fn test_parse_secret_key_valid_with_prefix() {
+        let key_bytes =
+            parse_secret_key(TEST_SECRET_KEY_STR).expect("Failed to parse valid key with prefix");
         assert_eq!(key_bytes.len(), 32);
     }
 
     #[test]
-    fn test_parse_secret_key_invalid_prefix() {
-        let result = parse_secret_key("invalid:key");
-        assert!(matches!(result, Err(OrderlyError::AuthenticationError(_))));
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Missing 'ed25519:' prefix"));
+    fn test_parse_secret_key_valid_without_prefix() {
+        let key_bytes = parse_secret_key(TEST_SECRET_KEY_NO_PREFIX)
+            .expect("Failed to parse valid key without prefix");
+        assert_eq!(key_bytes.len(), 32);
     }
 
     #[test]
     fn test_parse_secret_key_invalid_base58() {
-        let result = parse_secret_key("ed25519:invalid-base58~");
+        let result = parse_secret_key("invalid-base58~");
         assert!(matches!(result, Err(OrderlyError::AuthenticationError(_))));
         assert!(result
             .unwrap_err()
@@ -152,7 +153,7 @@ mod tests {
     fn test_parse_secret_key_invalid_length() {
         // Generate a valid base58 string but with wrong length
         let short_key = bs58::encode(vec![0u8; 31]).into_string();
-        let result = parse_secret_key(&format!("ed25519:{}", short_key));
+        let result = parse_secret_key(&short_key);
         assert!(matches!(result, Err(OrderlyError::AuthenticationError(_))));
         assert!(result
             .unwrap_err()
@@ -161,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_signature_works() {
+    fn test_generate_signature_works_with_prefix() {
         let timestamp = get_timestamp_ms().unwrap();
         let method = "POST";
         let path = "/v1/order";
@@ -169,7 +170,26 @@ mod tests {
         let message_to_sign = format!("{}{}{}{}", timestamp, method, path, body);
 
         let signature = generate_signature(TEST_SECRET_KEY_STR, &message_to_sign)
-            .expect("Failed to generate signature");
+            .expect("Failed to generate signature with prefix");
+
+        // Basic check: signature should be non-empty base64 string
+        assert!(!signature.is_empty());
+        // Try decoding base64 to ensure it's valid
+        base64::engine::general_purpose::STANDARD
+            .decode(&signature)
+            .expect("Signature is not valid base64");
+    }
+
+    #[test]
+    fn test_generate_signature_works_without_prefix() {
+        let timestamp = get_timestamp_ms().unwrap();
+        let method = "POST";
+        let path = "/v1/order";
+        let body = r#"{"symbol": "SPOT_NEAR_USDC", "order_type": "LIMIT", "order_price": 15.23, "order_quantity": 23.11, "side": "BUY"}"#;
+        let message_to_sign = format!("{}{}{}{}", timestamp, method, path, body);
+
+        let signature = generate_signature(TEST_SECRET_KEY_NO_PREFIX, &message_to_sign)
+            .expect("Failed to generate signature without prefix");
 
         // Basic check: signature should be non-empty base64 string
         assert!(!signature.is_empty());
@@ -178,9 +198,12 @@ mod tests {
             .decode(&signature)
             .expect("Signature is not valid base64");
 
-        println!("Message: {}", message_to_sign);
-        println!("Generated Signature: {}", signature);
-        // We can't easily verify the signature without the public key and known test vectors,
-        // but we ensure the process runs without errors.
+        // Verify both formats generate the same signature
+        let signature_with_prefix = generate_signature(TEST_SECRET_KEY_STR, &message_to_sign)
+            .expect("Failed to generate signature with prefix");
+        assert_eq!(
+            signature, signature_with_prefix,
+            "Signatures should be identical regardless of prefix"
+        );
     }
 }
