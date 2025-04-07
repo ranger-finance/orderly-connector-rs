@@ -3,7 +3,8 @@
 // Import the common setup function
 mod common;
 
-use assert_matches::assert_matches;
+// Remove the use statement if present
+// use assert_matches::assert_matches;
 
 use orderly_connector_rs::rest::OrderlyService;
 
@@ -62,11 +63,15 @@ async fn test_get_exchange_info_all() {
     println!("Response structure: {:#?}", info_resp);
     assert!(info_resp.success, "API response indicates failure");
 
-    // Assert that data is the 'All' variant and extract it
-    assert_matches!(
-        info_resp.data,
-        orderly_connector_rs::rest::client::ExchangeInfoData::All(_)
-    );
+    // Assert that data is the 'All' variant using match
+    match info_resp.data {
+        orderly_connector_rs::rest::client::ExchangeInfoData::All(_) => { /* Correct variant, do nothing */
+        }
+        _ => panic!(
+            "Expected ExchangeInfoData::All variant, got {:?}",
+            info_resp.data
+        ),
+    }
 
     // Get the rows array by matching the enum variant
     let instruments = if let orderly_connector_rs::rest::client::ExchangeInfoData::All(all_data) =
@@ -153,11 +158,15 @@ async fn test_get_exchange_info_specific() {
 
     assert!(info_resp.success, "API response indicates failure");
 
-    // Assert that data is the 'Single' variant and extract it
-    assert_matches!(
-        info_resp.data,
-        orderly_connector_rs::rest::client::ExchangeInfoData::Single(_)
-    );
+    // Assert that data is the 'Single' variant using match
+    match info_resp.data {
+        orderly_connector_rs::rest::client::ExchangeInfoData::Single(_) => { /* Correct variant, do nothing */
+        }
+        _ => panic!(
+            "Expected ExchangeInfoData::Single variant, got {:?}",
+            info_resp.data
+        ),
+    }
 
     // Check the symbol within the Single variant
     if let orderly_connector_rs::rest::client::ExchangeInfoData::Single(symbol_info) =
