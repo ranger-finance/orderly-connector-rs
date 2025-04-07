@@ -637,6 +637,48 @@ pub struct GetFundingRateHistoryResponseData {
 
 pub type GetFundingRateHistoryResponse = SuccessResponse<GetFundingRateHistoryResponseData>;
 
+// Iterator implementation for funding rate history
+pub struct FundingRateHistoryIterator {
+    response: GetFundingRateHistoryResponse,
+    index: usize,
+}
+
+impl Iterator for FundingRateHistoryIterator {
+    type Item = FundingRateHistory;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.response.data.rows.len() {
+            let item = self.response.data.rows[self.index].clone();
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl IntoIterator for GetFundingRateHistoryResponse {
+    type Item = FundingRateHistory;
+    type IntoIter = FundingRateHistoryIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FundingRateHistoryIterator {
+            response: self,
+            index: 0,
+        }
+    }
+}
+
+// Also implement iterator for reference to avoid consuming the response
+impl<'a> IntoIterator for &'a GetFundingRateHistoryResponse {
+    type Item = &'a FundingRateHistory;
+    type IntoIter = std::slice::Iter<'a, FundingRateHistory>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.rows.iter()
+    }
+}
+
 // ===== Algo Orders =====
 
 // TODO: Define request/response structs for Algo Orders

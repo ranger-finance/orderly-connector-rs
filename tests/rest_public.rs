@@ -162,35 +162,40 @@ async fn test_get_funding_rate_history() {
         "Should have at least one market"
     );
 
-    // Check the first market's data
-    let first_market = &history_resp.data.rows[0];
-    assert!(
-        !first_market.symbol.is_empty(),
-        "Symbol should not be empty"
-    );
-    assert!(
-        !first_market.data_start_time.is_empty(),
-        "Start time should not be empty"
-    );
-
-    // Check that funding rate data exists for all periods
-    let funding = &first_market.funding;
-    assert!(
-        funding.last.rate.abs() <= 1.0,
-        "Funding rate should be reasonable"
-    );
-
-    // Check one_day if it exists
-    if let Some(one_day) = &funding.one_day {
+    // Test reference iterator
+    println!("Testing reference iterator:");
+    for funding_rate in &history_resp {
         assert!(
-            one_day.positive >= 0,
-            "Positive count should be non-negative"
+            !funding_rate.symbol.is_empty(),
+            "Symbol should not be empty"
         );
         assert!(
-            one_day.negative >= 0,
-            "Negative count should be non-negative"
+            !funding_rate.data_start_time.is_empty(),
+            "Start time should not be empty"
+        );
+        assert!(
+            funding_rate.funding.last.rate.abs() <= 1.0,
+            "Funding rate should be reasonable"
         );
     }
+
+    // Test consuming iterator
+    println!("Testing consuming iterator:");
+    let mut count = 0;
+    for funding_rate in history_resp {
+        count += 1;
+        if let Some(one_day) = &funding_rate.funding.one_day {
+            assert!(
+                one_day.positive >= 0,
+                "Positive count should be non-negative"
+            );
+            assert!(
+                one_day.negative >= 0,
+                "Negative count should be non-negative"
+            );
+        }
+    }
+    assert!(count > 0, "Should have iterated over at least one item");
 }
 
 // Add more tests for other public endpoints like get_futures_info...
