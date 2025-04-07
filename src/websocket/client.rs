@@ -20,10 +20,125 @@ const TESTNET_WS_PRIVATE_URL: &str =
 const MAX_RETRIES: u32 = 30; // Max number of consecutive reconnect attempts
 const RETRY_DELAY_SECS: u64 = 5; // Delay between reconnect attempts
 
+/// WebSocket client implementation for the Orderly Network API.
+///
+/// This module provides two main client types:
+/// - [`WebsocketPublicClient`]: For subscribing to public market data streams
+/// - [`WebsocketPrivateClient`]: For subscribing to private, authenticated data streams
+///
+/// Both clients feature:
+/// - Automatic reconnection with configurable retry logic
+/// - Subscription state management and automatic resubscription after reconnects
+/// - Asynchronous message handling via callbacks
+/// - Clean shutdown capabilities
+///
+/// # Connection Management
+///
+/// Both client types handle connection management automatically, including:
+/// - Initial connection establishment
+/// - Authentication (for private streams)
+/// - Automatic reconnection on disconnection
+/// - Subscription state persistence across reconnects
+/// - Ping/Pong message handling
+///
+/// # Message Handling
+///
+/// Messages are handled through two callback mechanisms:
+/// - `on_message`: Called for each received message
+/// - `on_close`: Called when the connection is closed
+///
+/// # Examples
+///
+/// Public client usage:
+/// ```no_run
+/// use orderly_connector_rs::websocket::WebsocketPublicClient;
+/// use std::sync::Arc;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let message_handler = Arc::new(|msg: String| {
+///         println!("Received: {}", msg);
+///     });
+///
+///     let close_handler = Arc::new(|| {
+///         println!("Connection closed");
+///     });
+///
+///     let client = WebsocketPublicClient::connect(
+///         "your_account_id".to_string(),
+///         true, // is_testnet
+///         message_handler,
+///         close_handler,
+///     ).await.expect("Failed to connect");
+///
+///     // Subscribe to orderbook updates
+///     client.subscribe_orderbook("PERP_ETH_USDC").await.expect("Failed to subscribe");
+///
+///     // Keep the connection alive
+///     tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+///     client.stop().await;
+/// }
+/// ```
+///
+/// Private client usage:
+/// ```no_run
+/// use orderly_connector_rs::websocket::WebsocketPrivateClient;
+/// use std::sync::Arc;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let message_handler = Arc::new(|msg: String| {
+///         println!("Received: {}", msg);
+///     });
+///
+///     let close_handler = Arc::new(|| {
+///         println!("Connection closed");
+///     });
+///
+///     let client = WebsocketPrivateClient::connect(
+///         "your_api_key".to_string(),
+///         "your_secret".to_string(),
+///         "your_account_id".to_string(),
+///         true, // is_testnet
+///         message_handler,
+///         close_handler,
+///     ).await.expect("Failed to connect");
+///
+///     // Subscribe to balance updates
+///     client.subscribe_balance().await.expect("Failed to subscribe");
+///
+///     // Keep the connection alive
+///     tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+///     client.stop().await;
+/// }
+/// ```
+
 /// Configuration for the WebSocket client.
 ///
 /// This struct holds the necessary configuration for connecting to the Orderly Network
 /// WebSocket API, including authentication details and connection settings.
+///
+/// # Fields
+///
+/// * `base_url` - The WebSocket URL to connect to (public/private, mainnet/testnet)
+/// * `orderly_key` - Optional Orderly API key (required for private endpoints)
+/// * `orderly_secret` - Optional Orderly API secret (required for private endpoints)
+/// * `orderly_account_id` - Your Orderly account ID
+/// * `wss_id` - Optional WebSocket request ID for message tracking
+///
+/// # Examples
+///
+/// ```no_run
+/// use orderly_connector_rs::websocket::WebsocketClientConfig;
+///
+/// let config = WebsocketClientConfig {
+///     base_url: "wss://testnet-ws.orderly.network/ws/stream".to_string(),
+///     orderly_key: None,
+///     orderly_secret: None,
+///     orderly_account_id: "your_account_id".to_string(),
+///     wss_id: None,
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebsocketClientConfig {
     /// The WebSocket URL to connect to (public/private, mainnet/testnet)
@@ -159,10 +274,32 @@ async fn connect_managed(
 /// A client for interacting with the Orderly Network public WebSocket API.
 ///
 /// This client provides methods for subscribing to public market data streams,
-/// including orderbook updates, tickers, and trades.
+/// including orderbook updates, tickers, trades, and liquidation events.
+///
+/// # Features
+///
+/// * Automatic reconnection with configurable retry logic
+/// * Subscription state persistence across reconnects
+/// * Asynchronous message handling via callbacks
+/// * Clean shutdown capabilities
+///
+/// # Available Subscriptions
+///
+/// * Tickers: Market-wide ticker updates
+/// * Orderbook: Real-time orderbook updates for specific symbols
+/// * Liquidations: Real-time liquidation events
+///
+/// # Connection Management
+///
+/// The client automatically handles:
+/// * Initial connection establishment
+/// * Automatic reconnection on disconnection (up to MAX_RETRIES)
+/// * Subscription state persistence and resubscription after reconnects
+/// * Ping/Pong message handling
 ///
 /// # Examples
 ///
+/// Basic usage:
 /// ```no_run
 /// use orderly_connector_rs::websocket::WebsocketPublicClient;
 /// use std::sync::Arc;
@@ -184,8 +321,14 @@ async fn connect_managed(
 ///         close_handler,
 ///     ).await.expect("Failed to connect");
 ///
-///     // Subscribe to orderbook updates
-///     client.subscribe_orderbook("PERP_ETH_USDC").await.expect("Failed to subscribe");
+///     // Subscribe to multiple data streams
+///     client.subscribe_tickers().await.expect("Failed to subscribe to tickers");
+///     client.subscribe_orderbook("PERP_ETH_USDC").await.expect("Failed to subscribe to orderbook");
+///     client.subscribe_liquidations().await.expect("Failed to subscribe to liquidations");
+///
+///     // Keep the connection alive
+///     tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+///     client.stop().await;
 /// }
 /// ```
 pub struct WebsocketPublicClient {
@@ -335,8 +478,35 @@ impl WebsocketPublicClient {
         self.send_str(&msg_str).await
     }
 
-    // --- Subscription Methods (Updated) ---
-
+    /// Subscribe to real-time ticker updates for all trading pairs.
+    ///
+    /// Tickers provide a summary of market activity including:
+    /// - Last traded price
+    /// - 24h price change
+    /// - 24h trading volume
+    /// - Best bid/ask prices
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_tickers().await.expect("Failed to subscribe to tickers");
+    /// # }
+    /// ```
     pub async fn subscribe_tickers(&self) -> Result<()> {
         let msg = json!({
             "id": "subscribe_tickers",
@@ -346,15 +516,38 @@ impl WebsocketPublicClient {
         self.subscribe(msg).await
     }
 
-    pub async fn unsubscribe_tickers(&self) -> Result<()> {
-        let msg = json!({
-            "id": "unsubscribe_tickers",
-            "topic": "tickers",
-            "event": "unsubscribe"
-        });
-        self.unsubscribe(msg).await
-    }
-
+    /// Subscribe to real-time orderbook updates for a specific trading pair.
+    ///
+    /// Orderbook updates include:
+    /// - Bid and ask price levels
+    /// - Quantity at each price level
+    /// - Update sequence numbers for order matching
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_orderbook("PERP_ETH_USDC").await.expect("Failed to subscribe to orderbook");
+    /// # }
+    /// ```
     pub async fn subscribe_orderbook(&self, symbol: &str) -> Result<()> {
         let topic = format!("orderbook@{}", symbol);
         let msg = json!({
@@ -365,19 +558,38 @@ impl WebsocketPublicClient {
         self.subscribe(msg).await
     }
 
-    pub async fn unsubscribe_orderbook(&self, symbol: &str) -> Result<()> {
-        let topic = format!("orderbook@{}", symbol);
-        let msg = json!({
-            "id": format!("unsubscribe_orderbook_{}", symbol),
-            "topic": topic,
-            "event": "unsubscribe"
-        });
-        self.unsubscribe(msg).await
-    }
-
     /// Subscribe to the liquidation push stream.
-    /// Push interval: push on addition/removal/update from list within 1s.
-    /// https://orderly.network/docs/build-on-omnichain/evm-api/websocket-api/public/liquidation-push
+    ///
+    /// Provides real-time updates about liquidation events across the platform.
+    /// Updates are pushed within 1 second of any addition, removal, or update to the liquidation list.
+    ///
+    /// The stream provides information about:
+    /// - Positions being liquidated
+    /// - Liquidation prices
+    /// - Position sizes
+    /// - Affected trading pairs
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_liquidations().await.expect("Failed to subscribe to liquidations");
+    /// # }
+    /// ```
     pub async fn subscribe_liquidations(&self) -> Result<()> {
         // Use a descriptive ID, or consider making it configurable/dynamic
         let msg = json!({
@@ -386,16 +598,6 @@ impl WebsocketPublicClient {
             "topic": "liquidation"
         });
         self.subscribe(msg).await
-    }
-
-    /// Unsubscribe from the liquidation push stream.
-    pub async fn unsubscribe_liquidations(&self) -> Result<()> {
-        let msg = json!({
-            "id": "unsub_liquidations",
-            "event": "unsubscribe",
-            "topic": "liquidation"
-        });
-        self.unsubscribe(msg).await
     }
 
     // --- Stop Method ---
@@ -415,10 +617,33 @@ impl WebsocketPublicClient {
 /// A client for interacting with the Orderly Network private WebSocket API.
 ///
 /// This client provides methods for subscribing to private data streams,
-/// including account updates, order updates, and position updates.
+/// including account updates, order updates, position updates, and balance updates.
+/// All streams require authentication with valid API credentials.
+///
+/// # Features
+///
+/// * Automatic authentication using API credentials
+/// * Automatic reconnection with configurable retry logic
+/// * Subscription state persistence across reconnects
+/// * Asynchronous message handling via callbacks
+/// * Clean shutdown capabilities
+///
+/// # Available Subscriptions
+///
+/// * Execution Reports: Real-time order execution updates
+/// * Positions: Position changes and updates
+/// * Balance: Account balance updates
+///
+/// # Authentication
+///
+/// The client automatically handles:
+/// * Initial authentication using provided API credentials
+/// * Re-authentication after reconnects
+/// * Secure message signing
 ///
 /// # Examples
 ///
+/// Basic usage with multiple subscriptions:
 /// ```no_run
 /// use orderly_connector_rs::websocket::WebsocketPrivateClient;
 /// use std::sync::Arc;
@@ -442,8 +667,14 @@ impl WebsocketPublicClient {
 ///         close_handler,
 ///     ).await.expect("Failed to connect");
 ///
-///     // Subscribe to account updates (now using balance)
+///     // Subscribe to multiple private streams
+///     client.subscribe_execution_reports().await.expect("Failed to subscribe to executions");
+///     client.subscribe_positions().await.expect("Failed to subscribe to positions");
 ///     client.subscribe_balance().await.expect("Failed to subscribe to balance");
+///
+///     // Keep the connection alive
+///     tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+///     client.stop().await;
 /// }
 /// ```
 pub struct WebsocketPrivateClient {
@@ -647,8 +878,41 @@ impl WebsocketPrivateClient {
         self.send_str(&msg_str).await
     }
 
-    // --- Private Subscription Methods (Updated) ---
-
+    /// Subscribe to real-time execution reports for your orders.
+    ///
+    /// Execution reports provide detailed information about order lifecycle events:
+    /// - Order creation and cancellation
+    /// - Trade executions and fills
+    /// - Order status updates
+    /// - Execution prices and quantities
+    ///
+    /// # Authentication
+    ///
+    /// This endpoint requires authentication with valid API credentials.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed, authentication failed, or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPrivateClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPrivateClient::connect(
+    /// #     "api_key".to_string(),
+    /// #     "secret".to_string(),
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_execution_reports().await.expect("Failed to subscribe to execution reports");
+    /// # }
+    /// ```
     pub async fn subscribe_execution_reports(&self) -> Result<()> {
         let msg = json!({
             "id": "subscribe_execution",
@@ -658,15 +922,41 @@ impl WebsocketPrivateClient {
         self.subscribe(msg).await
     }
 
-    pub async fn unsubscribe_execution_reports(&self) -> Result<()> {
-        let msg = json!({
-            "id": "unsubscribe_execution",
-            "topic": "execution",
-            "event": "unsubscribe"
-        });
-        self.unsubscribe(msg).await
-    }
-
+    /// Subscribe to real-time position updates.
+    ///
+    /// Position updates include:
+    /// - Entry price changes
+    /// - Position size changes
+    /// - Unrealized PnL updates
+    /// - Leverage and margin information
+    ///
+    /// # Authentication
+    ///
+    /// This endpoint requires authentication with valid API credentials.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed, authentication failed, or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPrivateClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPrivateClient::connect(
+    /// #     "api_key".to_string(),
+    /// #     "secret".to_string(),
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_positions().await.expect("Failed to subscribe to positions");
+    /// # }
+    /// ```
     pub async fn subscribe_positions(&self) -> Result<()> {
         let msg = json!({
             "id": "subscribe_position",
@@ -676,16 +966,41 @@ impl WebsocketPrivateClient {
         self.subscribe(msg).await
     }
 
-    pub async fn unsubscribe_positions(&self) -> Result<()> {
-        let msg = json!({
-            "id": "unsubscribe_position",
-            "topic": "position",
-            "event": "unsubscribe"
-        });
-        self.unsubscribe(msg).await
-    }
-
-    // Added balance subscription methods
+    /// Subscribe to real-time balance updates.
+    ///
+    /// Balance updates provide information about:
+    /// - Available balance changes
+    /// - Total equity updates
+    /// - Margin allocations
+    /// - Unrealized PnL impact on balance
+    ///
+    /// # Authentication
+    ///
+    /// This endpoint requires authentication with valid API credentials.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed, authentication failed, or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPrivateClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPrivateClient::connect(
+    /// #     "api_key".to_string(),
+    /// #     "secret".to_string(),
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_balance().await.expect("Failed to subscribe to balance updates");
+    /// # }
+    /// ```
     pub async fn subscribe_balance(&self) -> Result<()> {
         let msg = json!({
             "id": "subscribe_balance",
@@ -693,15 +1008,6 @@ impl WebsocketPrivateClient {
             "event": "subscribe"
         });
         self.subscribe(msg).await
-    }
-
-    pub async fn unsubscribe_balance(&self) -> Result<()> {
-        let msg = json!({
-            "id": "unsubscribe_balance",
-            "topic": "balance",
-            "event": "unsubscribe"
-        });
-        self.unsubscribe(msg).await
     }
 
     // --- Stop Method ---
