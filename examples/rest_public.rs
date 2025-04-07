@@ -1,5 +1,4 @@
 // examples/rest_public.rs
-use orderly_connector_rs::rest::client::Credentials;
 use orderly_connector_rs::rest::OrderlyService;
 use std::env;
 
@@ -8,11 +7,6 @@ async fn main() {
     // Optional: Load .env file if you have one
     dotenv::dotenv().ok();
 
-    // Load configuration from environment variables
-    // NOTE: Even public endpoints require these for client initialization in this example.
-    let api_key = env::var("ORDERLY_API_KEY").expect("ORDERLY_API_KEY not set");
-    let secret = env::var("ORDERLY_SECRET").expect("ORDERLY_SECRET not set");
-    let account_id = env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
     let is_testnet: bool = env::var("ORDERLY_TESTNET")
         .unwrap_or("true".to_string())
         .parse()
@@ -20,13 +14,6 @@ async fn main() {
 
     // Initialize the client
     let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
-
-    // Create credentials for authenticated endpoints
-    let creds = Credentials {
-        orderly_key: &api_key,
-        orderly_secret: &secret,
-        orderly_account_id: &account_id,
-    };
 
     println!("Using Testnet: {}", is_testnet);
 
