@@ -40,6 +40,7 @@ async fn test_create_get_cancel_order() {
     let (client, creds) = setup_client();
     let symbol = "PERP_ETH_USDC"; // Testnet symbol
     let mut created_order_id: Option<u64> = None;
+    println!("Creating order for symbol: {}", symbol);
 
     // Create a limit buy order
     let order_req = CreateOrderRequest {

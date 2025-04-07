@@ -24,6 +24,7 @@ pub fn setup() {
     });
 }
 
+#[allow(dead_code)]
 pub fn get_env_var(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{} environment variable not set", name))
 }
