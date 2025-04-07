@@ -5,7 +5,7 @@ use log::warn;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client as HttpClient, Method, Request, Response};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
 use url::Url;
@@ -371,14 +371,14 @@ impl OrderlyService {
     /// ```
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/public/get-exchange-info
-    pub async fn get_exchange_info(&self, symbol: Option<&str>) -> Result<Value> {
+    pub async fn get_exchange_info(&self, symbol: Option<&str>) -> Result<ExchangeInfoResponse> {
         let path = match symbol {
             Some(s) => format!("/v1/public/info/{}", s),
             None => "/v1/public/info".to_string(),
         };
         let url = self.base_url.join(&path)?;
         let request = self.http_client.get(url).build()?;
-        self.send_public_request(request).await
+        self.send_request::<ExchangeInfoResponse>(request).await
     }
 
     /// Retrieves futures contract information, optionally filtered by symbol.
@@ -789,4 +789,41 @@ impl OrderlyService {
     //         .await?;
     //     self.send_request::<Value>(request).await
     // }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct SymbolInfo {
+    pub symbol: String,
+    pub quote_min: f64,
+    pub quote_max: f64,
+    pub quote_tick: f64,
+    pub base_min: f64,
+    pub base_max: f64,
+    pub base_tick: f64,
+    pub min_notional: f64,
+    pub price_range: f64,
+    pub created_time: u64,
+    pub updated_time: u64,
+    pub imr_factor: Option<f64>,
+    pub liquidation_fee: Option<f64>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AllSymbolsData {
+    pub rows: Vec<SymbolInfo>,
+}
+
+// Use an enum to represent the two possible structures of the 'data' field
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)] // Important for trying to deserialize as either variant
+pub enum ExchangeInfoData {
+    Single(SymbolInfo),
+    All(AllSymbolsData),
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ExchangeInfoResponse {
+    pub success: bool,
+    pub timestamp: u64,
+    pub data: ExchangeInfoData,
 }

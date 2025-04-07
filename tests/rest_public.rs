@@ -3,6 +3,8 @@
 // Import the common setup function
 mod common;
 
+use assert_matches::assert_matches;
+
 use orderly_connector_rs::rest::OrderlyService;
 
 /// Tests the system status endpoint of the Orderly Network API.
@@ -58,19 +60,22 @@ async fn test_get_exchange_info_all() {
 
     let info_resp = result.unwrap();
     println!("Response structure: {:#?}", info_resp);
-    assert!(
-        info_resp["success"].as_bool().unwrap_or(false),
-        "API response indicates failure"
-    );
-    assert!(
-        info_resp["data"].is_object(),
-        "Response data should be an object"
+    assert!(info_resp.success, "API response indicates failure");
+
+    // Assert that data is the 'All' variant and extract it
+    assert_matches!(
+        info_resp.data,
+        orderly_connector_rs::rest::client::ExchangeInfoData::All(_)
     );
 
-    // Get the rows array
-    let instruments = info_resp["data"]["rows"]
-        .as_array()
-        .expect("rows array should exist in response");
+    // Get the rows array by matching the enum variant
+    let instruments = if let orderly_connector_rs::rest::client::ExchangeInfoData::All(all_data) =
+        info_resp.data
+    {
+        all_data.rows
+    } else {
+        panic!("Expected ExchangeInfoData::All variant");
+    };
 
     assert!(
         !instruments.is_empty(),
@@ -83,45 +88,42 @@ async fn test_get_exchange_info_all() {
     // Print the first instrument to see its structure
     println!("First instrument structure: {:#?}", first_instrument);
 
-    // More flexible assertions that check if fields exist before asserting their types
+    // Direct field access for assertions
     assert!(
-        first_instrument.get("symbol").is_some(),
-        "symbol field missing"
+        !first_instrument.symbol.is_empty(),
+        "symbol field missing or empty"
     );
-    if let Some(symbol) = first_instrument.get("symbol") {
-        assert!(symbol.is_string(), "symbol should be a string");
-    }
 
-    // Check for base_min and base_max
+    // Check for base_min and base_max (assuming they are always present f64)
     assert!(
-        first_instrument.get("base_min").is_some(),
-        "base_min field missing"
+        first_instrument.base_min >= 0.0,
+        "base_min missing or invalid"
     );
     assert!(
-        first_instrument.get("base_max").is_some(),
-        "base_max field missing"
+        first_instrument.base_max >= 0.0,
+        "base_max missing or invalid"
     );
 
     // Check for base_tick
     assert!(
-        first_instrument.get("base_tick").is_some(),
-        "base_tick field missing"
+        first_instrument.base_tick > 0.0,
+        "base_tick missing or invalid"
     );
 
     // Check for quote_min and quote_max
     assert!(
-        first_instrument.get("quote_min").is_some(),
-        "quote_min field missing"
+        first_instrument.quote_min >= 0.0,
+        "quote_min missing or invalid"
     );
     assert!(
-        first_instrument.get("quote_max").is_some(),
-        "quote_max field missing"
+        first_instrument.quote_max >= 0.0,
+        "quote_max missing or invalid"
     );
 
     // Check for quote_tick
     assert!(
-        first_instrument.get("quote_tick").is_some(),
-        "quote_tick field missing"
+        first_instrument.quote_tick > 0.0,
+        "quote_tick missing or invalid"
     );
 }
 
@@ -148,25 +150,27 @@ async fn test_get_exchange_info_specific() {
     assert!(result.is_ok());
     let info_resp = result.unwrap();
     println!("Response structure for specific symbol: {:#?}", info_resp);
-    println!("Data field structure: {:#?}", info_resp.get("data"));
-    assert!(info_resp["success"].as_bool().unwrap_or(false));
-    assert!(info_resp["data"].is_object());
 
-    // The response structure might be different, let's print all available paths
-    if let Some(data) = info_resp.get("data") {
-        println!(
-            "Available fields in data: {:#?}",
-            data.as_object().map(|obj| obj.keys().collect::<Vec<_>>())
-        );
-    }
+    assert!(info_resp.success, "API response indicates failure");
 
-    // For now, just check if we can find the symbol anywhere in the response
-    let symbol_found = info_resp.to_string().contains(symbol);
-    assert!(
-        symbol_found,
-        "Symbol {} not found anywhere in response",
-        symbol
+    // Assert that data is the 'Single' variant and extract it
+    assert_matches!(
+        info_resp.data,
+        orderly_connector_rs::rest::client::ExchangeInfoData::Single(_)
     );
+
+    // Check the symbol within the Single variant
+    if let orderly_connector_rs::rest::client::ExchangeInfoData::Single(symbol_info) =
+        info_resp.data
+    {
+        println!("Data field structure: {:#?}", symbol_info);
+        assert_eq!(
+            symbol_info.symbol, symbol,
+            "Symbol in response does not match request"
+        );
+    } else {
+        panic!("Expected ExchangeInfoData::Single variant");
+    }
 }
 
 /// Tests the funding rate history endpoint.
