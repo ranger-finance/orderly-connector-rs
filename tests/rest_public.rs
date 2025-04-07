@@ -162,9 +162,9 @@ async fn test_get_funding_rate_history() {
         "Should have at least one market"
     );
 
-    // Test reference iterator
-    println!("Testing reference iterator:");
-    for funding_rate in &history_resp {
+    // Test reference iterator on response data
+    println!("Testing reference iterator on response data:");
+    for funding_rate in &history_resp.data {
         assert!(
             !funding_rate.symbol.is_empty(),
             "Symbol should not be empty"
@@ -179,10 +179,11 @@ async fn test_get_funding_rate_history() {
         );
     }
 
-    // Test consuming iterator
-    println!("Testing consuming iterator:");
+    // Test consuming iterator on response data
+    println!("Testing consuming iterator on response data:");
+    let data = history_resp.data;
     let mut count = 0;
-    for funding_rate in history_resp {
+    for funding_rate in data {
         count += 1;
         if let Some(one_day) = &funding_rate.funding.one_day {
             assert!(

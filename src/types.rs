@@ -635,6 +635,26 @@ pub struct GetFundingRateHistoryResponseData {
     pub rows: Vec<FundingRateHistory>,
 }
 
+// Iterator implementation for response data
+impl IntoIterator for GetFundingRateHistoryResponseData {
+    type Item = FundingRateHistory;
+    type IntoIter = std::vec::IntoIter<FundingRateHistory>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows.into_iter()
+    }
+}
+
+// Reference iterator implementation for response data
+impl<'a> IntoIterator for &'a GetFundingRateHistoryResponseData {
+    type Item = &'a FundingRateHistory;
+    type IntoIter = std::slice::Iter<'a, FundingRateHistory>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows.iter()
+    }
+}
+
 pub type GetFundingRateHistoryResponse = SuccessResponse<GetFundingRateHistoryResponseData>;
 
 // Iterator implementation for funding rate history
