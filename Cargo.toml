@@ -23,7 +23,7 @@ anyhow = "1"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 log = "0.4"
 url = "2"
-ed25519-dalek = "2"
+ed25519-dalek = "1.0"
 sha2 = "0.10"
 base64 = "0.22"
 hmac = "0.12" # Note: hmac might not be directly needed if using ed25519 directly, but keeping as per plan.

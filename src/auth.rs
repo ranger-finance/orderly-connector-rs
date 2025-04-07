@@ -1,7 +1,7 @@
 use crate::error::{OrderlyError, Result};
 use base64::Engine;
 use chrono::Utc;
-use ed25519_dalek::{Signer, SigningKey};
+use ed25519_dalek::{Keypair, Signer};
 
 /// Gets the current UTC timestamp in milliseconds since the Unix epoch.
 ///
@@ -94,8 +94,8 @@ fn parse_secret_key(secret_key_str: &str) -> Result<[u8; 32]> {
 /// ```
 pub fn generate_signature(orderly_secret: &str, message: &str) -> Result<String> {
     let key_bytes = parse_secret_key(orderly_secret)?;
-    let signing_key = SigningKey::from_bytes(&key_bytes);
-    let signature = signing_key.sign(message.as_bytes());
+    let keypair = Keypair::from_bytes(&key_bytes)?;
+    let signature = keypair.sign(message.as_bytes());
     Ok(base64::engine::general_purpose::STANDARD.encode(signature.to_bytes()))
 }
 
