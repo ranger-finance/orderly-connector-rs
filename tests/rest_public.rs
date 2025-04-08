@@ -364,20 +364,52 @@ async fn test_get_price_changes() {
     println!("Get Price Changes Response: {:?}", result);
     assert!(result.is_ok());
 
-    if let Ok(response) = result {
-        assert!(response.success);
-        assert!(
-            !response.data.rows.is_empty(),
-            "Expected at least one price change row"
-        );
+    let price_changes = result.unwrap();
+    assert!(price_changes.success);
+    assert!(
+        !price_changes.data.rows.is_empty(),
+        "Expected at least one price change row"
+    );
 
-        // Check the first row has valid data
-        if let Some(first_row) = response.data.rows.first() {
-            assert!(!first_row.symbol.is_empty(), "Symbol should not be empty");
-            assert!(first_row.last_price > 0.0, "Last price should be positive");
+    // Test reference iterator on response data
+    println!("Testing reference iterator on response data:");
+    for price in &price_changes.data {
+        assert!(!price.symbol.is_empty(), "Symbol should not be empty");
+        assert!(price.last_price > 0.0, "Last price should be positive");
+        // Note: Historical prices might be null, so we don't assert on them
+        println!("Symbol: {}, Last Price: {}", price.symbol, price.last_price);
+    }
 
-            // Note: Historical prices might be null, so we don't assert on them
-            println!("First symbol price info: {:?}", first_row);
+    // Test consuming iterator on response data
+    println!("Testing consuming iterator on response data:");
+    let data = price_changes.data;
+    let mut count = 0;
+    for price in data {
+        count += 1;
+        assert!(!price.symbol.is_empty(), "Symbol should not be empty");
+        if let Some(change_24h) = price.twenty_four_hour {
+            println!("24h change for {}: {}", price.symbol, change_24h);
         }
     }
+    assert!(count > 0, "Should have iterated over at least one price");
+
+    // Test reference iterator on full response
+    println!("Testing reference iterator on full response:");
+    let result = client.get_price_changes().await.unwrap();
+    for price in &result {
+        assert!(!price.symbol.is_empty(), "Symbol should not be empty");
+        if let Some(change_7d) = price.seven_day {
+            println!("7d change for {}: {}", price.symbol, change_7d);
+        }
+    }
+
+    // Test consuming iterator on full response
+    println!("Testing consuming iterator on full response:");
+    let result = client.get_price_changes().await.unwrap();
+    let mut symbols = Vec::new();
+    for price in result {
+        symbols.push(price.symbol.clone());
+    }
+    assert!(!symbols.is_empty(), "Should have collected some symbols");
+    println!("Found {} symbols", symbols.len());
 }

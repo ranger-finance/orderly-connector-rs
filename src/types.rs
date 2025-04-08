@@ -869,6 +869,7 @@ pub struct PriceChange {
     pub thirty_day: Option<f64>,
 }
 
+#[derive(Deserialize, Debug, Clone)]
 pub struct GetPriceChangesResponseData {
     pub rows: Vec<PriceChange>,
 }
