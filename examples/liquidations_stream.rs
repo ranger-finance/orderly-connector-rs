@@ -1,4 +1,5 @@
 use orderly_connector_rs::websocket::WebsocketPublicClient;
+use serde_json::json;
 use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -20,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Using mainnet for production use
     let is_testnet: bool = false;
 
-    // Define WebSocket URLs as per documentation
+    // Define WebSocket URLs as per EVM documentation
     let ws_base_url = if is_testnet {
         "wss://testnet-ws-evm.orderly.org/ws/stream"
     } else {
@@ -83,15 +84,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Check for ping message (client will handle PING/PONG automatically)
+        // Log if we see ping messages
         if msg.contains("ping") {
-            println!("Ping received - client should send pong automatically");
+            println!("Ping received - client should handle automatically");
             if let Ok(mut file) = OpenOptions::new().append(true).open(&log_filename_clone) {
-                let _ = writeln!(
-                    file,
-                    "[{}] Ping detected, pong should be automatic",
-                    timestamp
-                );
+                let _ = writeln!(file, "[{}] Ping detected, handled by client", timestamp);
             }
         }
     });
@@ -146,7 +143,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // IMPORTANT: Wait a moment after connecting before subscribing
-    // This gives the server time to complete any setup
     println!("Waiting for connection to stabilize...");
     if let Ok(mut file) = OpenOptions::new().append(true).open(&log_filename) {
         let _ = writeln!(
@@ -168,14 +164,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Subscribe to liquidations stream with retry logic
+    // Create an explicit subscription message following the EVM API format
+    // as seen in the Python connector implementation
+    let subscription_message = json!({
+        "id": wss_id,
+        "event": "subscribe",
+        "topic": "liquidation"
+    });
+
+    if let Ok(mut file) = OpenOptions::new().append(true).open(&log_filename) {
+        let _ = writeln!(
+            file,
+            "[{}] Created subscription message: {}",
+            chrono::Local::now(),
+            subscription_message
+        );
+    }
+
+    // Try using the standard subscribe_liquidations method
+    println!("Trying standard subscribe_liquidations method...");
     let mut retry_count = 0;
     const MAX_RETRIES: u32 = 3;
 
     while retry_count < MAX_RETRIES {
         match client.subscribe_liquidations().await {
             Ok(_) => {
-                // Log subscription success
                 if let Ok(mut file) = OpenOptions::new().append(true).open(&log_filename) {
                     let _ = writeln!(
                         file,
@@ -183,14 +196,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         chrono::Local::now()
                     );
                 }
-
                 println!("Successfully subscribed to liquidations stream");
                 break;
             }
             Err(e) => {
                 retry_count += 1;
-
-                // Log subscription error
                 if let Ok(mut file) = OpenOptions::new().append(true).open(&log_filename) {
                     let _ = writeln!(
                         file,
@@ -201,26 +211,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         e
                     );
                 }
-
                 eprintln!(
                     "Attempt {}/{}: Failed to subscribe to liquidations: {}",
                     retry_count, MAX_RETRIES, e
                 );
 
                 if retry_count == MAX_RETRIES {
-                    // Log max retries reached
                     if let Ok(mut file) = OpenOptions::new().append(true).open(&log_filename) {
                         let _ = writeln!(
                             file,
-                            "[{}] Maximum retries reached. Stopping client.",
+                            "[{}] Maximum retries reached. Will still wait for messages...",
                             chrono::Local::now()
                         );
                     }
-
-                    client.stop().await;
-                    return Err(e.into());
+                    // Don't exit on failure, just continue to listen
+                    println!("Subscription failed, but continuing to listen for any messages...");
                 }
-
                 sleep(Duration::from_secs(2)).await;
             }
         }
@@ -237,11 +243,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Keep the connection alive until Ctrl+C
+    // Keep the connection alive with heartbeat logging
     loop {
         sleep(Duration::from_secs(30)).await;
-
-        // Log heartbeat
         if let Ok(mut file) = OpenOptions::new().append(true).open(&log_filename) {
             let _ = writeln!(
                 file,
