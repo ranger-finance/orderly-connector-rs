@@ -791,3 +791,55 @@ impl<'a> IntoIterator for &'a GetOpenInterestResponse {
 // TODO: Define request/response structs for Algo Orders
 // pub struct CreateAlgoOrderRequest ...
 // pub type CreateAlgoOrderResponse = SuccessResponse<...>;
+
+// === Get Positions Under Liquidation ===
+
+/// Optional parameters for querying positions under liquidation.
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct GetPositionsUnderLiquidationParams {
+    pub start_t: Option<u64>, // 13-digit timestamp
+    pub end_t: Option<u64>,   // 13-digit timestamp
+    pub page: Option<u32>,
+    pub size: Option<u32>, // Default is 60 according to docs, but API might default to 25? Let caller decide.
+}
+
+/// Represents a single position within a liquidation event.
+#[derive(Deserialize, Debug, Clone)]
+pub struct PositionByPerp {
+    pub symbol: String,
+    pub position_qty: f64,
+    pub liquidator_fee: f64,
+}
+
+/// Represents a single liquidation event row.
+#[derive(Deserialize, Debug, Clone)]
+pub struct LiquidationPositionRow {
+    pub timestamp: u64, // 13-digit timestamp
+    #[serde(rename = "type")]
+    pub event_type: String, // "liquidated"
+    pub liquidation_id: u64,
+    pub positions_by_perp: Vec<PositionByPerp>,
+}
+
+/// Metadata associated with paginated liquidation responses.
+#[derive(Deserialize, Debug, Clone)]
+pub struct LiquidationMeta {
+    pub total: u32,
+    pub records_per_page: u32,
+    pub current_page: u32,
+}
+
+/// Data structure for the Get Positions Under Liquidation response.
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetPositionsUnderLiquidationData {
+    pub meta: LiquidationMeta,
+    pub rows: Vec<LiquidationPositionRow>,
+}
+
+/// Response structure for the Get Positions Under Liquidation endpoint.
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetPositionsUnderLiquidationResponse {
+    pub success: bool,
+    pub timestamp: u64, // 13-digit timestamp
+    pub data: GetPositionsUnderLiquidationData,
+}

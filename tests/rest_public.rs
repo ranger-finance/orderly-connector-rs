@@ -6,7 +6,10 @@ mod common;
 // Remove the use statement if present
 // use assert_matches::assert_matches;
 
+// Remove the unused import
+// use orderly_connector_rs::error::Result;
 use orderly_connector_rs::rest::OrderlyService;
+use orderly_connector_rs::types::*; // This should import all types including the new ones
 
 /// Tests the system status endpoint of the Orderly Network API.
 ///
@@ -313,4 +316,38 @@ async fn test_get_open_interest() {
     }
 }
 
-// Add more tests for other public endpoints like get_futures_info...
+#[tokio::test]
+#[ignore] // Ignored by default to avoid hitting the API on every `cargo test` run
+async fn test_get_positions_under_liquidation() {
+    let service = OrderlyService::new(true, None).expect("Failed to create service"); // Use testnet
+
+    // Test without params
+    let result = service.get_positions_under_liquidation(None).await;
+    println!("Get Positions Under Liquidation (no params): {:?}", result);
+    assert!(result.is_ok());
+    if let Ok(response) = result {
+        assert!(response.success);
+        // Basic checks on structure
+        assert!(response.data.meta.records_per_page > 0); // Should have some default page size
+    }
+
+    // Test with params (example: page 1, size 5)
+    let params = GetPositionsUnderLiquidationParams {
+        page: Some(1),
+        size: Some(5),
+        ..Default::default()
+    };
+    let result_params = service.get_positions_under_liquidation(Some(params)).await;
+    println!(
+        "Get Positions Under Liquidation (with params): {:?}",
+        result_params
+    );
+    assert!(result_params.is_ok());
+    if let Ok(response) = result_params {
+        assert!(response.success);
+        // Check if pagination params are reflected (if API does)
+        assert_eq!(response.data.meta.current_page, 1);
+        // Note: API might return less than requested size if total < size
+        assert!(response.data.meta.records_per_page <= 5 || response.data.rows.len() <= 5);
+    }
+}

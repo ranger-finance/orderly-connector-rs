@@ -455,6 +455,58 @@ impl OrderlyService {
         self.send_public_request(request).await
     }
 
+    /// Retrieves positions currently under liquidation.
+    ///
+    /// Corresponds to GET /v1/public/liquidation
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - Optional query parameters for filtering by time, and pagination.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the positions under liquidation or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::OrderlyService;
+    /// # use orderly_connector_rs::types::GetPositionsUnderLiquidationParams;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let service = OrderlyService::new(true, None).unwrap();
+    /// // Get all positions currently under liquidation (first page)
+    /// let positions = service.get_positions_under_liquidation(None).await.expect("Failed");
+    /// println!("Positions under liquidation: {:?}", positions);
+    ///
+    /// // Get positions with pagination
+    /// let params = GetPositionsUnderLiquidationParams { page: Some(2), size: Some(10), ..Default::default() };
+    /// let positions_page2 = service.get_positions_under_liquidation(Some(params)).await.expect("Failed");
+    /// println!("Positions page 2: {:?}", positions_page2);
+    /// # }
+    /// ```
+    ///
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-positions-under-liquidation#get-positions-under-liquidation
+    pub async fn get_positions_under_liquidation(
+        &self,
+        params: Option<GetPositionsUnderLiquidationParams>,
+    ) -> Result<GetPositionsUnderLiquidationResponse> {
+        let mut path = "/v1/public/liquidation".to_string();
+        if let Some(p) = params {
+            if let Ok(query) = serde_qs::to_string(&p) {
+                if !query.is_empty() {
+                    path.push('?');
+                    path.push_str(&query);
+                }
+            } else {
+                warn!("Failed to serialize GetPositionsUnderLiquidationParams to query string");
+            }
+        }
+        let url = self.base_url.join(&path)?;
+        let request = self.http_client.get(url).build()?;
+        self.send_public_request(request).await
+    }
+
     // --- Private Endpoints (Orders) ---
 
     /// Creates a new order for the specified user.
