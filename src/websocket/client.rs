@@ -516,6 +516,38 @@ impl WebsocketPublicClient {
         self.subscribe(msg).await
     }
 
+    /// Unsubscribe from real-time ticker updates.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_tickers().await.expect("Failed to unsubscribe from tickers");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_tickers(&self) -> Result<()> {
+        let msg = json!({
+            "id": "unsubscribe_tickers",
+            "topic": "tickers",
+            "event": "unsubscribe"
+        });
+        self.unsubscribe(msg).await
+    }
+
     /// Subscribe to real-time orderbook updates for a specific trading pair.
     ///
     /// Orderbook updates include:
@@ -556,6 +588,43 @@ impl WebsocketPublicClient {
             "event": "subscribe"
         });
         self.subscribe(msg).await
+    }
+
+    /// Unsubscribe from real-time orderbook updates for a specific trading pair.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_orderbook("PERP_ETH_USDC").await.expect("Failed to unsubscribe from orderbook");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_orderbook(&self, symbol: &str) -> Result<()> {
+        let topic = format!("orderbook@{}", symbol);
+        let msg = json!({
+            "id": format!("unsubscribe_orderbook_{}", symbol),
+            "topic": topic,
+            "event": "unsubscribe"
+        });
+        self.unsubscribe(msg).await
     }
 
     /// Subscribe to real-time open interest updates for a specific trading pair.
