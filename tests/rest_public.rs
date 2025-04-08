@@ -249,4 +249,68 @@ async fn test_get_funding_rate_history() {
     assert!(count > 0, "Should have iterated over at least one item");
 }
 
+/// Tests the open interest endpoint.
+///
+/// This test verifies that:
+/// - The API can retrieve open interest data for all trading pairs
+/// - The response contains valid open interest records
+/// - Each record has required fields (symbol, long_oi, short_oi)
+/// - Open interest values are non-negative
+/// - Both reference and consuming iterators work correctly on the response data
+///
+/// Note: This test is ignored by default as it requires network access.
+#[tokio::test]
+#[ignore]
+async fn test_get_open_interest() {
+    common::setup();
+    let is_testnet = common::get_testnet_flag();
+
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
+
+    let result = client.get_open_interest().await;
+    println!("Open Interest Result: {:#?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to get open interest: {:?}",
+        result.err()
+    );
+
+    let oi_resp = result.unwrap();
+    println!("Response structure: {:#?}", oi_resp);
+    assert!(oi_resp.success, "API response indicates failure");
+
+    // Test consuming iterator
+    let oi_data = oi_resp.data;
+    assert!(!oi_data.rows.is_empty(), "No open interest records found");
+
+    // Validate first record
+    let first_record = &oi_data.rows[0];
+    assert!(!first_record.symbol.is_empty(), "Symbol is empty");
+    assert!(first_record.long_oi >= 0.0, "Long OI is negative");
+    assert!(
+        first_record.short_oi <= 0.0,
+        "Short OI should be negative or zero"
+    );
+
+    // Test reference iterator
+    for record in &oi_data {
+        assert!(!record.symbol.is_empty(), "Symbol is empty in record");
+        assert!(record.long_oi >= 0.0, "Long OI is negative in record");
+        assert!(
+            record.short_oi <= 0.0,
+            "Short OI should be negative or zero"
+        );
+    }
+
+    // Test consuming iterator
+    for record in oi_data {
+        assert!(!record.symbol.is_empty(), "Symbol is empty in record");
+        assert!(record.long_oi >= 0.0, "Long OI is negative in record");
+        assert!(
+            record.short_oi <= 0.0,
+            "Short OI should be negative or zero"
+        );
+    }
+}
+
 // Add more tests for other public endpoints like get_futures_info...

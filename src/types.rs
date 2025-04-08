@@ -699,6 +699,93 @@ impl<'a> IntoIterator for &'a GetFundingRateHistoryResponse {
     }
 }
 
+// ===== Open Interest =====
+
+/// Represents open interest data for a trading pair.
+///
+/// # Fields
+///
+/// * `symbol` - The trading pair symbol (e.g., "PERP_BTC_USDC")
+/// * `long_oi` - Total long open interest, expected to be non-negative
+/// * `short_oi` - Total short open interest, represented as a negative number or zero
+#[derive(Deserialize, Debug, Clone)]
+pub struct OpenInterest {
+    pub symbol: String,
+    /// Total long open interest, expected to be non-negative
+    pub long_oi: f64,
+    /// Total short open interest, represented as a negative number or zero
+    pub short_oi: f64,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetOpenInterestResponseData {
+    pub rows: Vec<OpenInterest>,
+}
+
+// Iterator implementation for response data
+impl IntoIterator for GetOpenInterestResponseData {
+    type Item = OpenInterest;
+    type IntoIter = std::vec::IntoIter<OpenInterest>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows.into_iter()
+    }
+}
+
+// Reference iterator implementation for response data
+impl<'a> IntoIterator for &'a GetOpenInterestResponseData {
+    type Item = &'a OpenInterest;
+    type IntoIter = std::slice::Iter<'a, OpenInterest>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows.iter()
+    }
+}
+
+pub type GetOpenInterestResponse = SuccessResponse<GetOpenInterestResponseData>;
+
+// Iterator implementation for open interest
+pub struct OpenInterestIterator {
+    response: GetOpenInterestResponse,
+    index: usize,
+}
+
+impl Iterator for OpenInterestIterator {
+    type Item = OpenInterest;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.response.data.rows.len() {
+            let item = self.response.data.rows[self.index].clone();
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl IntoIterator for GetOpenInterestResponse {
+    type Item = OpenInterest;
+    type IntoIter = OpenInterestIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        OpenInterestIterator {
+            response: self,
+            index: 0,
+        }
+    }
+}
+
+// Also implement iterator for reference to avoid consuming the response
+impl<'a> IntoIterator for &'a GetOpenInterestResponse {
+    type Item = &'a OpenInterest;
+    type IntoIter = std::slice::Iter<'a, OpenInterest>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.rows.iter()
+    }
+}
+
 // ===== Algo Orders =====
 
 // TODO: Define request/response structs for Algo Orders

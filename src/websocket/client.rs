@@ -516,6 +516,38 @@ impl WebsocketPublicClient {
         self.subscribe(msg).await
     }
 
+    /// Unsubscribe from real-time ticker updates.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_tickers().await.expect("Failed to unsubscribe from tickers");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_tickers(&self) -> Result<()> {
+        let msg = json!({
+            "id": "unsubscribe_tickers",
+            "topic": "tickers",
+            "event": "unsubscribe"
+        });
+        self.unsubscribe(msg).await
+    }
+
     /// Subscribe to real-time orderbook updates for a specific trading pair.
     ///
     /// Orderbook updates include:
@@ -552,6 +584,85 @@ impl WebsocketPublicClient {
         let topic = format!("orderbook@{}", symbol);
         let msg = json!({
             "id": format!("subscribe_orderbook_{}", symbol),
+            "topic": topic,
+            "event": "subscribe"
+        });
+        self.subscribe(msg).await
+    }
+
+    /// Unsubscribe from real-time orderbook updates for a specific trading pair.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_orderbook("PERP_ETH_USDC").await.expect("Failed to unsubscribe from orderbook");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_orderbook(&self, symbol: &str) -> Result<()> {
+        let topic = format!("orderbook@{}", symbol);
+        let msg = json!({
+            "id": format!("unsubscribe_orderbook_{}", symbol),
+            "topic": topic,
+            "event": "unsubscribe"
+        });
+        self.unsubscribe(msg).await
+    }
+
+    /// Subscribe to real-time open interest updates for a specific trading pair.
+    ///
+    /// Open interest updates include:
+    /// - Total long positions
+    /// - Total short positions
+    /// - Updates every 1 second if changed, or 10 seconds force update
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_open_interest("PERP_ETH_USDC").await.expect("Failed to subscribe to open interest");
+    /// # }
+    /// ```
+    pub async fn subscribe_open_interest(&self, symbol: &str) -> Result<()> {
+        let topic = format!("{}@openinterest", symbol);
+        let msg = json!({
+            "id": format!("subscribe_openinterest_{}", symbol),
             "topic": topic,
             "event": "subscribe"
         });
@@ -598,6 +709,75 @@ impl WebsocketPublicClient {
             "topic": "liquidation"
         });
         self.subscribe(msg).await
+    }
+
+    /// Unsubscribe from real-time open interest updates for a specific trading pair.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_open_interest("PERP_ETH_USDC").await.expect("Failed to unsubscribe from open interest");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_open_interest(&self, symbol: &str) -> Result<()> {
+        let topic = format!("{}@openinterest", symbol);
+        let msg = json!({
+            "id": format!("unsubscribe_openinterest_{}", symbol),
+            "topic": topic,
+            "event": "unsubscribe"
+        });
+        self.unsubscribe(msg).await
+    }
+
+    /// Unsubscribe from the liquidation push stream.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_liquidations().await.expect("Failed to unsubscribe from liquidations");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_liquidations(&self) -> Result<()> {
+        let msg = json!({
+            "id": "unsub_liquidations",
+            "event": "unsubscribe",
+            "topic": "liquidation"
+        });
+        self.unsubscribe(msg).await
     }
 
     // --- Stop Method ---
@@ -1008,6 +1188,108 @@ impl WebsocketPrivateClient {
             "event": "subscribe"
         });
         self.subscribe(msg).await
+    }
+
+    /// Unsubscribe from position updates.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPrivateClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPrivateClient::connect(
+    /// #     "api_key".to_string(),
+    /// #     "secret".to_string(),
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_positions().await.expect("Failed to unsubscribe from positions");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_positions(&self) -> Result<()> {
+        let msg = json!({
+            "id": "unsub_positions",
+            "event": "unsubscribe",
+            "topic": "position"
+        });
+        self.unsubscribe(msg).await
+    }
+
+    /// Unsubscribe from execution report updates.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPrivateClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPrivateClient::connect(
+    /// #     "api_key".to_string(),
+    /// #     "secret".to_string(),
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_execution_reports().await.expect("Failed to unsubscribe from execution reports");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_execution_reports(&self) -> Result<()> {
+        let msg = json!({
+            "id": "unsub_execution_reports",
+            "event": "unsubscribe",
+            "topic": "executionreport"
+        });
+        self.unsubscribe(msg).await
+    }
+
+    /// Unsubscribe from balance updates.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the unsubscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPrivateClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPrivateClient::connect(
+    /// #     "api_key".to_string(),
+    /// #     "secret".to_string(),
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.unsubscribe_balance().await.expect("Failed to unsubscribe from balance updates");
+    /// # }
+    /// ```
+    pub async fn unsubscribe_balance(&self) -> Result<()> {
+        let msg = json!({
+            "id": "unsub_balance",
+            "event": "unsubscribe",
+            "topic": "balance"
+        });
+        self.unsubscribe(msg).await
     }
 
     // --- Stop Method ---

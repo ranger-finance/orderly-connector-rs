@@ -425,6 +425,36 @@ impl OrderlyService {
         self.send_public_request(request).await
     }
 
+    /// Get open interest for all trading pairs.
+    /// GET /v1/public/market_info/traders_open_interests
+    ///
+    /// This endpoint provides open interest information for all trading pairs,
+    /// showing the total long and short positions held by traders.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the open interest information for all trading pairs.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::OrderlyService;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let service = OrderlyService::new(true, None).unwrap();
+    /// let open_interests = service.get_open_interest().await.expect("Failed to get open interests");
+    /// println!("Open interests: {:?}", open_interests);
+    /// # }
+    /// ```
+    ///
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-open-interests-for-all-symbols
+    pub async fn get_open_interest(&self) -> Result<GetOpenInterestResponse> {
+        let path = "/v1/public/market_info/traders_open_interests";
+        let url = self.base_url.join(path)?;
+        let request = self.http_client.get(url).build()?;
+        self.send_public_request(request).await
+    }
+
     // --- Private Endpoints (Orders) ---
 
     /// Creates a new order for the specified user.
