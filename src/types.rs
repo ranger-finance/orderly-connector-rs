@@ -869,9 +869,70 @@ pub struct PriceChange {
     pub thirty_day: Option<f64>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
 pub struct GetPriceChangesResponseData {
     pub rows: Vec<PriceChange>,
 }
 
+// Iterator implementation for response data
+impl IntoIterator for GetPriceChangesResponseData {
+    type Item = PriceChange;
+    type IntoIter = std::vec::IntoIter<PriceChange>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows.into_iter()
+    }
+}
+
+// Reference iterator implementation for response data
+impl<'a> IntoIterator for &'a GetPriceChangesResponseData {
+    type Item = &'a PriceChange;
+    type IntoIter = std::slice::Iter<'a, PriceChange>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.rows.iter()
+    }
+}
+
 pub type GetPriceChangesResponse = SuccessResponse<GetPriceChangesResponseData>;
+
+// Iterator implementation for price changes
+pub struct PriceChangeIterator {
+    response: GetPriceChangesResponse,
+    index: usize,
+}
+
+impl Iterator for PriceChangeIterator {
+    type Item = PriceChange;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.response.data.rows.len() {
+            let item = self.response.data.rows[self.index].clone();
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl IntoIterator for GetPriceChangesResponse {
+    type Item = PriceChange;
+    type IntoIter = PriceChangeIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        PriceChangeIterator {
+            response: self,
+            index: 0,
+        }
+    }
+}
+
+// Also implement iterator for reference to avoid consuming the response
+impl<'a> IntoIterator for &'a GetPriceChangesResponse {
+    type Item = &'a PriceChange;
+    type IntoIter = std::slice::Iter<'a, PriceChange>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.rows.iter()
+    }
+}
