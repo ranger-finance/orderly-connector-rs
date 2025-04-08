@@ -1,6 +1,6 @@
 [package]
 name = "orderly-connector-rs"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 description = "A Rust client library for interacting with the Orderly Network API"
 license = "MIT"
