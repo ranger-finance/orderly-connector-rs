@@ -843,3 +843,35 @@ pub struct GetPositionsUnderLiquidationResponse {
     pub timestamp: u64, // 13-digit timestamp
     pub data: GetPositionsUnderLiquidationData,
 }
+
+// === Price Changes ===
+
+/// Represents price information for a symbol at different time intervals
+#[derive(Deserialize, Debug, Clone)]
+pub struct PriceChange {
+    pub symbol: String,
+    pub last_price: f64,
+    #[serde(rename = "5m")]
+    pub five_min: Option<f64>,
+    #[serde(rename = "30m")]
+    pub thirty_min: Option<f64>,
+    #[serde(rename = "1h")]
+    pub one_hour: Option<f64>,
+    #[serde(rename = "4h")]
+    pub four_hour: Option<f64>,
+    #[serde(rename = "24h")]
+    pub twenty_four_hour: Option<f64>,
+    #[serde(rename = "3d")]
+    pub three_day: Option<f64>,
+    #[serde(rename = "7d")]
+    pub seven_day: Option<f64>,
+    #[serde(rename = "30d")]
+    pub thirty_day: Option<f64>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetPriceChangesResponseData {
+    pub rows: Vec<PriceChange>,
+}
+
+pub type GetPriceChangesResponse = SuccessResponse<GetPriceChangesResponseData>;

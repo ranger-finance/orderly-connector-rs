@@ -455,6 +455,36 @@ impl OrderlyService {
         self.send_public_request(request).await
     }
 
+    /// Get price changes for all trading pairs.
+    /// GET /v1/public/market_info/price_changes
+    ///
+    /// This endpoint provides price information for all trading pairs at different time intervals:
+    /// 5m, 30m, 1h, 4h, 24h, 3d, 7d, and 30d ago.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the price changes information for all trading pairs.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::OrderlyService;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let service = OrderlyService::new(true, None).unwrap();
+    /// let price_changes = service.get_price_changes().await.expect("Failed to get price changes");
+    /// println!("Price changes: {:?}", price_changes);
+    /// # }
+    /// ```
+    ///
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-price-info-for-all-symbols
+    pub async fn get_price_changes(&self) -> Result<GetPriceChangesResponse> {
+        let path = "/v1/public/market_info/price_changes";
+        let url = self.base_url.join(path)?;
+        let request = self.http_client.get(url).build()?;
+        self.send_public_request(request).await
+    }
+
     /// Retrieves positions currently under liquidation.
     ///
     /// Corresponds to GET /v1/public/liquidation

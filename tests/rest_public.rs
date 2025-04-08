@@ -351,3 +351,33 @@ async fn test_get_positions_under_liquidation() {
         assert!(response.data.meta.records_per_page <= 5 || response.data.rows.len() <= 5);
     }
 }
+
+#[tokio::test]
+#[ignore] // Ignored by default to avoid hitting the API on every test run
+async fn test_get_price_changes() {
+    common::setup();
+    let is_testnet = common::get_testnet_flag();
+
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
+
+    let result = client.get_price_changes().await;
+    println!("Get Price Changes Response: {:?}", result);
+    assert!(result.is_ok());
+
+    if let Ok(response) = result {
+        assert!(response.success);
+        assert!(
+            !response.data.rows.is_empty(),
+            "Expected at least one price change row"
+        );
+
+        // Check the first row has valid data
+        if let Some(first_row) = response.data.rows.first() {
+            assert!(!first_row.symbol.is_empty(), "Symbol should not be empty");
+            assert!(first_row.last_price > 0.0, "Last price should be positive");
+
+            // Note: Historical prices might be null, so we don't assert on them
+            println!("First symbol price info: {:?}", first_row);
+        }
+    }
+}
