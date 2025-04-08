@@ -997,3 +997,83 @@ pub struct GetLiquidatedPositionsResponse {
     pub timestamp: u64,
     pub data: GetLiquidatedPositionsData,
 }
+
+// ===== WebSocket Subscription Types =====
+
+/// WebSocket subscription request message
+#[derive(Serialize, Debug, Clone)]
+pub struct WebSocketSubscriptionRequest {
+    #[serde(default = "default_subscription_id")]
+    pub id: String,
+    pub event: String,
+    pub topic: String,
+}
+
+impl Default for WebSocketSubscriptionRequest {
+    fn default() -> Self {
+        Self {
+            id: default_subscription_id(),
+            event: "subscribe".to_string(),
+            topic: "liquidation".to_string(),
+        }
+    }
+}
+
+fn default_subscription_id() -> String {
+    "sub_liquidations".to_string()
+}
+
+/// WebSocket subscription response
+#[derive(Deserialize, Debug, Clone)]
+pub struct WebSocketSubscriptionResponse {
+    #[serde(default = "default_subscription_id")]
+    pub id: String,
+    #[serde(default = "default_subscription_event")]
+    pub event: String,
+    #[serde(default = "default_subscription_success")]
+    pub success: bool,
+    pub ts: u64,
+}
+
+fn default_subscription_event() -> String {
+    "subscribe".to_string()
+}
+
+fn default_subscription_success() -> bool {
+    false
+}
+
+/// WebSocket liquidation message
+#[derive(Deserialize, Debug, Clone)]
+pub struct WebSocketLiquidationMessage {
+    pub topic: String,
+    pub ts: u64,
+    pub data: Vec<WebSocketLiquidationData>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct WebSocketLiquidationData {
+    #[serde(default)]
+    pub liquidation_id: u64,
+    #[serde(default)]
+    pub timestamp: u64,
+    #[serde(default = "default_liquidation_type")]
+    #[serde(rename = "type")]
+    pub event_type: String,
+    #[serde(default)]
+    pub positions_by_perp: Vec<WebSocketPositionByPerp>,
+}
+
+fn default_liquidation_type() -> String {
+    "liquidated".to_string()
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct WebSocketPositionByPerp {
+    #[serde(default)]
+    pub symbol: String,
+    #[serde(default)]
+    pub position_qty: f64,
+    #[serde(default)]
+    pub liquidator_fee: f64,
+}
