@@ -42,7 +42,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-orderly-connector-rs = "0.1.0"
+orderly-connector-rs = "0.2.4" # or the latest version
 ```
 
 Or install using cargo:
