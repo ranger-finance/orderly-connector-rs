@@ -937,3 +937,63 @@ impl<'a> IntoIterator for &'a GetPriceChangesResponse {
         self.data.rows.iter()
     }
 }
+
+// === Get Liquidated Positions ===
+
+/// Optional parameters for querying liquidated positions.
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct GetLiquidatedPositionsParams {
+    pub symbol: Option<String>,
+    pub start_t: Option<u64>, // 13-digit timestamp
+    pub end_t: Option<u64>,   // 13-digit timestamp
+    pub page: Option<u32>,
+    pub size: Option<u32>,
+}
+
+/// Represents a single position within a liquidation event.
+#[derive(Deserialize, Debug, Clone)]
+pub struct LiquidatedPositionByPerp {
+    pub symbol: String,
+    pub seq: Option<u64>,
+    pub position_qty: f64,
+    pub liquidator_fee: f64,
+    pub cost_position_transfer: f64,
+    pub transfer_price: f64,
+    pub insurance_fund_fee: f64,
+    pub abs_insurance_fund_fee: f64,
+    pub abs_liquidator_fee: f64,
+}
+
+/// Represents a single liquidation event row.
+#[derive(Deserialize, Debug, Clone)]
+pub struct LiquidatedPositionRow {
+    pub timestamp: u64,
+    pub liquidation_id: u64,
+    pub transfer_amount_to_insurance_fund: f64,
+    #[serde(rename = "type")]
+    pub event_type: String, // "liquidated"
+    pub positions_by_perp: Vec<LiquidatedPositionByPerp>,
+}
+
+/// Metadata associated with paginated liquidation responses.
+#[derive(Deserialize, Debug, Clone)]
+pub struct LiquidatedPositionMeta {
+    pub total: u32,
+    pub records_per_page: u32,
+    pub current_page: u32,
+}
+
+/// Data structure for the Get Liquidated Positions response.
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetLiquidatedPositionsData {
+    pub meta: LiquidatedPositionMeta,
+    pub rows: Vec<LiquidatedPositionRow>,
+}
+
+/// Response structure for the Get Liquidated Positions endpoint.
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetLiquidatedPositionsResponse {
+    pub success: bool,
+    pub timestamp: u64,
+    pub data: GetLiquidatedPositionsData,
+}

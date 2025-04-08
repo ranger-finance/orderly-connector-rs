@@ -537,6 +537,58 @@ impl OrderlyService {
         self.send_public_request(request).await
     }
 
+    /// Retrieves liquidated positions.
+    ///
+    /// Corresponds to GET /v1/public/liquidated_positions
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - Optional query parameters for filtering by symbol, time, and pagination.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the liquidated positions or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::OrderlyService;
+    /// # use orderly_connector_rs::types::GetLiquidatedPositionsParams;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let service = OrderlyService::new(true, None).unwrap();
+    /// // Get all liquidated positions (first page)
+    /// let positions = service.get_liquidated_positions(None).await.expect("Failed");
+    /// println!("Liquidated positions: {:?}", positions);
+    ///
+    /// // Get positions with pagination
+    /// let params = GetLiquidatedPositionsParams { page: Some(2), size: Some(10), ..Default::default() };
+    /// let positions_page2 = service.get_liquidated_positions(Some(params)).await.expect("Failed");
+    /// println!("Liquidated positions page 2: {:?}", positions_page2);
+    /// # }
+    /// ```
+    ///
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-liquidated-positions-info
+    pub async fn get_liquidated_positions(
+        &self,
+        params: Option<GetLiquidatedPositionsParams>,
+    ) -> Result<GetLiquidatedPositionsResponse> {
+        let mut path = "/v1/public/liquidated_positions".to_string();
+        if let Some(p) = params {
+            if let Ok(query) = serde_qs::to_string(&p) {
+                if !query.is_empty() {
+                    path.push('?');
+                    path.push_str(&query);
+                }
+            } else {
+                warn!("Failed to serialize GetLiquidatedPositionsParams to query string");
+            }
+        }
+        let url = self.base_url.join(&path)?;
+        let request = self.http_client.get(url).build()?;
+        self.send_public_request(request).await
+    }
+
     // --- Private Endpoints (Orders) ---
 
     /// Creates a new order for the specified user.

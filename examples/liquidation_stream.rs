@@ -1,4 +1,6 @@
 use futures_util::{SinkExt, StreamExt};
+use orderly_connector_rs::rest::OrderlyService;
+use orderly_connector_rs::types::GetLiquidatedPositionsParams;
 use serde_json::json;
 use std::env;
 use std::fs::{File, OpenOptions};
@@ -35,6 +37,77 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse::<bool>()
         .unwrap_or(false);
 
+    // Initialize Orderly service
+    let service = OrderlyService::new(is_testnet, None)?;
+
+    // Create log file
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let log_filename = format!("evm_liquidation_log_{}.txt", timestamp);
+
+    // Initialize log file
+    {
+        let mut file = File::create(&log_filename)?;
+        writeln!(
+            file,
+            "EVM Liquidation Monitor Log - Started at: {}",
+            chrono::Local::now()
+        )?;
+        writeln!(file, "Account ID: {}", account_id)?;
+        writeln!(file, "Testnet: {}", is_testnet)?;
+        writeln!(file, "")?;
+    }
+
+    println!("Starting Orderly Network Liquidation Monitor");
+    println!("Logging to {}", log_filename);
+
+    // Start a task to periodically fetch liquidated positions via REST API
+    let rest_log_filename = log_filename.clone();
+    tokio::spawn(async move {
+        let mut interval = interval(Duration::from_secs(60)); // Check every minute
+        loop {
+            interval.tick().await;
+            match service.get_liquidated_positions(None).await {
+                Ok(response) => {
+                    if !response.data.rows.is_empty() {
+                        log_to_file(
+                            &rest_log_filename,
+                            &format!(
+                                "REST API - Found {} liquidated positions",
+                                response.data.rows.len()
+                            ),
+                        )
+                        .await
+                        .unwrap_or_else(|e| eprintln!("Failed to log: {}", e));
+
+                        for row in response.data.rows {
+                            log_to_file(
+                                &rest_log_filename,
+                                &format!("REST API - Liquidation: {:?}", row),
+                            )
+                            .await
+                            .unwrap_or_else(|e| eprintln!("Failed to log: {}", e));
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to fetch liquidated positions: {}", e);
+                    log_to_file(
+                        &rest_log_filename,
+                        &format!(
+                            "REST API Error: Failed to fetch liquidated positions: {}",
+                            e
+                        ),
+                    )
+                    .await
+                    .unwrap_or_else(|e| eprintln!("Failed to log: {}", e));
+                }
+            }
+        }
+    });
+
     // Define WebSocket URL as per Orderly EVM documentation
     let ws_base_url = if is_testnet {
         "wss://testnet-ws-evm.orderly.org/ws/stream"
@@ -44,36 +117,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ws_url = format!("{}/{}", ws_base_url, account_id);
 
-    // Create log file
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let log_filename = format!("evm_websocket_log_{}.txt", timestamp);
-
-    // Initialize log file
-    {
-        let mut file = File::create(&log_filename)?;
-        writeln!(
-            file,
-            "EVM WebSocket Session Log - Started at: {}",
-            chrono::Local::now()
-        )?;
-        writeln!(file, "URL: {}", ws_url)?;
-        writeln!(file, "Account ID: {}", account_id)?;
-        writeln!(file, "Testnet: {}", is_testnet)?;
-        writeln!(file, "")?;
-    }
-
     println!("Connecting to Orderly EVM WebSocket at: {}", ws_url);
-    println!("Logging to {}", log_filename);
+    log_to_file(&log_filename, &format!("Connecting to {}", ws_url)).await?;
 
     // Parse URL
     let url = Url::parse(&ws_url)?;
 
     // Connect to WebSocket server
-    log_to_file(&log_filename, &format!("Connecting to {}", ws_url)).await?;
-
     let (ws_stream, _) = match connect_async(url).await {
         Ok(conn) => {
             println!("Connected to WebSocket server");

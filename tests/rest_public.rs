@@ -413,3 +413,39 @@ async fn test_get_price_changes() {
     assert!(!symbols.is_empty(), "Should have collected some symbols");
     println!("Found {} symbols", symbols.len());
 }
+
+#[tokio::test]
+#[ignore] // Ignored by default to avoid hitting the API on every test run
+async fn test_get_liquidated_positions() {
+    let service = OrderlyService::new(true, None).expect("Failed to create service"); // Use testnet
+
+    // Test without params
+    let result = service.get_liquidated_positions(None).await;
+    println!("Get Liquidated Positions (no params): {:?}", result);
+    assert!(result.is_ok());
+    if let Ok(response) = result {
+        assert!(response.success);
+        // Basic checks on structure
+        assert!(response.data.meta.records_per_page > 0); // Should have some default page size
+    }
+
+    // Test with params (example: page 1, size 5)
+    let params = GetLiquidatedPositionsParams {
+        page: Some(1),
+        size: Some(5),
+        ..Default::default()
+    };
+    let result_params = service.get_liquidated_positions(Some(params)).await;
+    println!(
+        "Get Liquidated Positions (with params): {:?}",
+        result_params
+    );
+    assert!(result_params.is_ok());
+    if let Ok(response) = result_params {
+        assert!(response.success);
+        // Check if pagination params are reflected (if API does)
+        assert_eq!(response.data.meta.current_page, 1);
+        // Note: API might return less than requested size if total < size
+        assert!(response.data.meta.records_per_page <= 5 || response.data.rows.len() <= 5);
+    }
+}
