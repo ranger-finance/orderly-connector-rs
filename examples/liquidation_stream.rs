@@ -6,7 +6,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
-use tokio::time::{sleep, Duration};
+use tokio::time::{interval, sleep, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
 
@@ -121,6 +121,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     };
 
+    // Add a proactive ping task that runs every 10 seconds
+    let ping_task = {
+        let tx = tx.clone();
+        let log_filename = log_filename.clone();
+        tokio::spawn(async move {
+            let mut interval = interval(Duration::from_secs(8)); // Slightly less than 10s for safety
+            loop {
+                interval.tick().await;
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as u64;
+
+                let ping_msg = json!({
+                    "event": "ping",
+                    "ts": timestamp
+                })
+                .to_string();
+
+                if let Err(e) = log_to_file(
+                    &log_filename,
+                    &format!("Sending proactive ping: {}", ping_msg),
+                )
+                .await
+                {
+                    eprintln!("Failed to log ping message: {}", e);
+                }
+
+                if let Err(e) = tx.send(Message::Text(ping_msg)).await {
+                    eprintln!("Failed to send ping: {}", e);
+                    break;
+                }
+            }
+        })
+    };
+
     // Wait a moment before subscribing
     println!("Waiting for connection to stabilize...");
     log_to_file(
@@ -156,9 +192,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
         return Err(e.into());
     }
-
-    // No need for a separate ping task, as the server sends regular pings
-    // We'll respond to those instead of sending our own
 
     // Process incoming messages
     println!("Waiting for messages... Press Ctrl+C to exit");
@@ -200,7 +233,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         }).to_string();
 
                                         println!("Received ping, sending proper pong format");
-                                        log_to_file(&log_filename, &format!("Sending correctly formatted pong: {}", pong_msg)).await?;
+                                        log_to_file(&log_filename, &format!("Sending pong response: {}", pong_msg)).await?;
 
                                         if let Err(e) = tx_for_pong.send(Message::Text(pong_msg)).await {
                                             log_to_file(&log_filename, &format!("Failed to send pong: {}", e)).await?;
@@ -262,14 +295,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Closing connection...");
     log_to_file(&log_filename, "Closing connection").await?;
 
-    // Abort the write task
+    // Abort both tasks
     write_task.abort();
+    ping_task.abort();
 
     // Send close message
     let _ = tx.send(Message::Close(None)).await;
 
-    // Wait for task to complete
+    // Wait for tasks to complete
     let _ = write_task.await;
+    let _ = ping_task.await;
 
     println!("Connection closed. Log file: {}", log_filename);
     log_to_file(&log_filename, "Session ended").await?;
