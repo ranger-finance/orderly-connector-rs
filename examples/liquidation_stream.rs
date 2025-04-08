@@ -1,6 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
 use orderly_connector_rs::rest::OrderlyService;
-use orderly_connector_rs::types::GetLiquidatedPositionsParams;
 use serde_json::json;
 use std::env;
 use std::fs::{File, OpenOptions};
