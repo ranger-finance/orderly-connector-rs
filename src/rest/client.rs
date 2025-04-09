@@ -589,6 +589,37 @@ impl OrderlyService {
         self.send_public_request(request).await
     }
 
+    /// Retrieves market trades for a given symbol.
+    /// GET /v1/public/market_trades
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the market trades or an error.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::rest::OrderlyService;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let service = OrderlyService::new(true, None).unwrap();
+    /// let trades = service.get_market_trades("PERP_ETH_USDC").await.expect("Failed to get market trades");
+    /// println!("Market trades: {:?}", trades);
+    /// # }
+    /// ```
+    ///
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-market-trades
+    pub async fn get_market_trades(&self, symbol: &str) -> Result<GetTradesResponse> {
+        let path = format!("/v1/public/market_trades?symbol={}&limit=500", symbol);
+        let url = self.base_url.join(&path)?;
+        let request = self.http_client.get(url).build()?;
+        self.send_public_request(request).await
+    }
+
     // --- Private Endpoints (Orders) ---
 
     /// Creates a new order for the specified user.

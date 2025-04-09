@@ -780,6 +780,50 @@ impl WebsocketPublicClient {
         self.unsubscribe(msg).await
     }
 
+    /// Subscribe to real-time trade updates for a specific trading pair.
+    ///
+    /// Trade updates include:
+    /// - Trade ID
+    /// - Symbol
+    /// - Side (buy/sell)
+    /// - Executed price and quantity
+    /// - Timestamp of execution
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the subscription request was sent successfully,
+    /// or an error if the request failed or the connection is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_trades("PERP_ETH_USDC").await.expect("Failed to subscribe to trades");
+    /// # }
+    /// ```
+    pub async fn subscribe_trades(&self, symbol: &str) -> Result<()> {
+        let topic = format!("{}@trade", symbol);
+        let msg = json!({
+            "id": format!("subscribe_trade_{}", symbol),
+            "topic": topic,
+            "event": "subscribe"
+        });
+        self.subscribe(msg).await
+    }
+
     // --- Stop Method ---
     pub async fn stop(&self) {
         info!("Stopping WebSocket client...");

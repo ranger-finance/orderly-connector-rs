@@ -449,3 +449,84 @@ async fn test_get_liquidated_positions() {
         assert!(response.data.meta.records_per_page <= 5 || response.data.rows.len() <= 5);
     }
 }
+
+/// Tests the market trades endpoint.
+///
+/// This test verifies that:
+/// - The API can retrieve recent market trades for a specific symbol.
+/// - The response structure is correct (success flag, data array).
+/// - The data array contains valid trade records.
+/// - Each trade record includes essential fields like id, symbol, side, price, quantity, and timestamp.
+///
+/// Note: This test is ignored by default as it requires network access.
+/// It assumes the specified symbol (e.g., "PERP_ETH_USDC") has had recent trades
+/// on the selected network (testnet/mainnet).
+#[tokio::test]
+#[ignore] // Ignored by default as it requires network access
+async fn test_get_market_trades() {
+    common::setup(); // Load .env variables
+    let is_testnet = common::get_testnet_flag(); // Determine if running against testnet
+    let symbol = "PERP_ETH_USDC"; // A commonly traded symbol
+
+    // Create the REST client instance
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
+
+    // Call the endpoint to get market trades for the specified symbol.
+    // Note: The function signature only takes the symbol.
+    let result = client.get_market_trades(symbol).await;
+
+    // Print the raw result for debugging purposes
+    println!("Market Trades ({}) Result: {:#?}", symbol, result);
+
+    // Assert that the API call was successful (returned Ok)
+    assert!(
+        result.is_ok(),
+        "Failed to get market trades: {:?}",
+        result.err()
+    );
+
+    // Unwrap the successful result to get the response payload (GetTradesResponse)
+    let response = result.unwrap();
+
+    // Print the structured response for debugging
+    println!("Market Trades Response Structure: {:#?}", response);
+
+    // Assert that the API reported success in its response payload
+    assert!(response.success, "API response indicates failure");
+
+    // Assert that the data.rows field (Vec<Trade>) is not empty.
+    // This assumes there have been recent trades for the symbol.
+    assert!(
+        !response.data.rows.is_empty(),
+        "Market trades data.rows array should not be empty for symbol {}",
+        symbol
+    );
+
+    // Validate the structure and content of the first trade in the list
+    // Access the first element of the rows vector
+    let first_trade = &response.data.rows[0];
+    println!("First Market Trade: {:#?}", first_trade);
+
+    // Assert essential fields are present and have plausible values using correct field names
+    assert!(first_trade.id > 0, "Trade ID should be positive");
+    assert_eq!(
+        first_trade.symbol, symbol,
+        "Trade symbol should match request"
+    );
+    assert!(
+        first_trade.side == Side::Buy || first_trade.side == Side::Sell,
+        "Trade side should be Buy or Sell"
+    );
+    assert!(
+        first_trade.executed_price > 0.0,
+        "Trade executed_price should be positive"
+    );
+    assert!(
+        first_trade.executed_quantity > 0.0,
+        "Trade executed_quantity should be positive"
+    );
+    assert!(
+        first_trade.executed_timestamp > 0,
+        "Trade executed_timestamp should be positive"
+    );
+}
