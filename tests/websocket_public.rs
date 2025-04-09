@@ -5,7 +5,7 @@ use serde_json::json;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 // Use the library crate name to import types in integration tests
-use orderly_connector_rs::types::{PublicTradesResponse, TradeData, WebSocketTradeData};
+use orderly_connector_rs::types::{GetPublicTradesResponse, TradeData, WebSocketTradeData};
 
 /// Tests the WebSocket connection and basic subscription functionality.
 ///
@@ -213,10 +213,10 @@ fn test_public_trades_response_deserialization() {
         "timestamp": 1622548800000u64
     });
 
-    let response: PublicTradesResponse = serde_json::from_value(json_data).unwrap();
+    let response: GetPublicTradesResponse = serde_json::from_value(json_data).unwrap();
     assert!(response.success);
-    assert_eq!(response.data.len(), 1);
-    assert_eq!(response.data[0].symbol, "BTC_USD");
+    assert_eq!(response.data.rows.len(), 1);
+    assert_eq!(response.data.rows[0].symbol, "BTC_USD");
 }
 
 #[test]
