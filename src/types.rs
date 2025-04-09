@@ -1077,3 +1077,26 @@ pub struct WebSocketPositionByPerp {
     #[serde(default)]
     pub liquidator_fee: f64,
 }
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct PublicTradesResponse {
+    pub success: bool,
+    pub data: Vec<TradeData>,
+    pub timestamp: u64,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct TradeData {
+    pub id: u64,
+    pub symbol: String,
+    pub side: String, // "BUY" or "SELL"
+    pub price: f64,
+    pub quantity: f64,
+    pub ts: u64, // Timestamp in milliseconds
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct WebSocketTradeData {
+    pub data: Vec<TradeData>,
+    pub ts: u64, // Timestamp in milliseconds
+}

@@ -3,6 +3,8 @@ mod common;
 use orderly_connector_rs::websocket::WebsocketPublicClient;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
+use serde_json::json;
+use crate::types::{PublicTradesResponse, TradeData, WebSocketTradeData};
 
 /// Tests the WebSocket connection and basic subscription functionality.
 ///
@@ -100,4 +102,64 @@ async fn test_subscribe_open_interest() {
     assert!(final_count > 0, "No open interest messages received");
 
     client.stop().await;
+}
+
+#[test]
+fn test_public_trades_response_deserialization() {
+    let json_data = json!({
+        "success": true,
+        "data": [
+            {
+                "id": 1,
+                "symbol": "BTC_USD",
+                "side": "BUY",
+                "price": 50000.0,
+                "quantity": 0.1,
+                "ts": 1622548800000
+            }
+        ],
+        "timestamp": 1622548800000
+    });
+
+    let response: PublicTradesResponse = serde_json::from_value(json_data).unwrap();
+    assert!(response.success);
+    assert_eq!(response.data.len(), 1);
+    assert_eq!(response.data[0].symbol, "BTC_USD");
+}
+
+#[test]
+fn test_trade_data_deserialization() {
+    let json_data = json!({
+        "id": 1,
+        "symbol": "BTC_USD",
+        "side": "SELL",
+        "price": 49000.0,
+        "quantity": 0.2,
+        "ts": 1622548800000
+    });
+
+    let trade: TradeData = serde_json::from_value(json_data).unwrap();
+    assert_eq!(trade.side, "SELL");
+    assert_eq!(trade.price, 49000.0);
+}
+
+#[test]
+fn test_websocket_trade_data_deserialization() {
+    let json_data = json!({
+        "data": [
+            {
+                "id": 2,
+                "symbol": "ETH_USD",
+                "side": "BUY",
+                "price": 2500.0,
+                "quantity": 1.0,
+                "ts": 1622548800000
+            }
+        ],
+        "ts": 1622548800000
+    });
+
+    let ws_data: WebSocketTradeData = serde_json::from_value(json_data).unwrap();
+    assert_eq!(ws_data.data.len(), 1);
+    assert_eq!(ws_data.data[0].symbol, "ETH_USD");
 }
