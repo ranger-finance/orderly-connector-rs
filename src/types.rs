@@ -961,7 +961,7 @@ pub struct LiquidatedPositionByPerp {
     pub transfer_price: f64,
     pub insurance_fund_fee: f64,
     pub abs_insurance_fund_fee: f64,
-    pub abs_liquidator_fee: f64,
+    pub abs_liquidator_fee: Option<f64>,
 }
 
 /// Represents a single liquidation event row.
