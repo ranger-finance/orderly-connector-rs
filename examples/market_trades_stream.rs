@@ -1,5 +1,4 @@
 use futures_util::{SinkExt, StreamExt};
-use orderly_connector_rs::rest::OrderlyService;
 use serde_json::json;
 use std::env;
 use std::fs::{File, OpenOptions};
@@ -37,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or(false);
 
     // Initialize Orderly service
-    let service = OrderlyService::new(is_testnet, None)?;
+    // let service = OrderlyService::new(is_testnet, None)?;
 
     // Create log file
     let timestamp = SystemTime::now()
