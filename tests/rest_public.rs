@@ -472,7 +472,6 @@ async fn test_get_market_trades() {
     let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
 
     // Call the endpoint to get market trades for the specified symbol.
-    // Note: The function signature only takes the symbol.
     let result = client.get_market_trades(symbol).await;
 
     // Print the raw result for debugging purposes
@@ -485,7 +484,7 @@ async fn test_get_market_trades() {
         result.err()
     );
 
-    // Unwrap the successful result to get the response payload (GetTradesResponse)
+    // Unwrap the successful result to get the response payload (GetPublicTradesResponse)
     let response = result.unwrap();
 
     // Print the structured response for debugging
@@ -494,7 +493,7 @@ async fn test_get_market_trades() {
     // Assert that the API reported success in its response payload
     assert!(response.success, "API response indicates failure");
 
-    // Assert that the data.rows field (Vec<Trade>) is not empty.
+    // Assert that the data.rows field (Vec<PublicTradeData>) is not empty.
     // This assumes there have been recent trades for the symbol.
     assert!(
         !response.data.rows.is_empty(),
@@ -508,15 +507,17 @@ async fn test_get_market_trades() {
     println!("First Market Trade: {:#?}", first_trade);
 
     // Assert essential fields are present and have plausible values using correct field names
-    assert!(first_trade.id > 0, "Trade ID should be positive");
+    // assert!(first_trade.id > 0, "Trade ID should be positive"); // ID field does not exist
     assert_eq!(
         first_trade.symbol, symbol,
         "Trade symbol should match request"
     );
+    // Check the side field as a string
     assert!(
-        first_trade.side == Side::Buy || first_trade.side == Side::Sell,
-        "Trade side should be Buy or Sell"
+        first_trade.side == "BUY" || first_trade.side == "SELL",
+        "Trade side should be BUY or SELL string"
     );
+    // Check executed_price, executed_quantity, and executed_timestamp fields from PublicTradeData
     assert!(
         first_trade.executed_price > 0.0,
         "Trade executed_price should be positive"

@@ -1079,12 +1079,29 @@ pub struct WebSocketPositionByPerp {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct PublicTradesResponse {
-    pub success: bool,
-    pub data: Vec<TradeData>,
-    pub timestamp: u64,
+pub struct PublicTradeData {
+    pub symbol: String,
+    pub side: String, // "BUY" or "SELL"
+    pub executed_price: f64,
+    pub executed_quantity: f64,
+    pub executed_timestamp: u64, // Timestamp in milliseconds
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetPublicTradesResponseData {
+    pub rows: Vec<PublicTradeData>,   // Use the new struct
+    pub meta: Option<PaginationMeta>, // Public trades might also have pagination
+}
+
+pub type GetPublicTradesResponse = SuccessResponse<GetPublicTradesResponseData>;
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct WebSocketTradeData {
+    pub data: Vec<TradeData>,
+    pub ts: u64, // Timestamp in milliseconds
+}
+
+// Struct for WebSocket trades (likely has 'id')
 #[derive(Deserialize, Debug, Clone)]
 pub struct TradeData {
     pub id: u64,
@@ -1092,11 +1109,5 @@ pub struct TradeData {
     pub side: String, // "BUY" or "SELL"
     pub price: f64,
     pub quantity: f64,
-    pub ts: u64, // Timestamp in milliseconds
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct WebSocketTradeData {
-    pub data: Vec<TradeData>,
     pub ts: u64, // Timestamp in milliseconds
 }

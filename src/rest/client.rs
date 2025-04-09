@@ -613,7 +613,7 @@ impl OrderlyService {
     /// ```
     ///
     /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-market-trades
-    pub async fn get_market_trades(&self, symbol: &str) -> Result<GetTradesResponse> {
+    pub async fn get_market_trades(&self, symbol: &str) -> Result<GetPublicTradesResponse> {
         let path = format!("/v1/public/market_trades?symbol={}&limit=500", symbol);
         let url = self.base_url.join(&path)?;
         let request = self.http_client.get(url).build()?;
