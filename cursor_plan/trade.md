@@ -19,93 +19,93 @@ This document outlines the implementation plan for integrating Orderly Network i
 #### Day 1-2: Environment Setup and SDK Analysis
 
 - [x] Fork `orderly-connector-rs` repository
-- [ ] Analyze missing endpoints (`create_algo_order`, `cancel_algo_order`, etc.)
-- [ ] Create database schema for credential management
-- [ ] Set up development environment with proper dependencies
+- [x] Analyze missing endpoints (`create_algo_order`, `cancel_algo_order`, etc.)
+- [x] Create database schema for credential management
+- [x] Set up development environment with proper dependencies
 
 #### Day 3-4: Implement Missing Endpoints
 
-- [ ] Add `AlgoOrderType` and related types
-- [ ] Implement `create_algo_order` endpoint
-- [ ] Implement `cancel_algo_order` endpoint
-- [ ] Implement `get_algo_orders` endpoint
-- [ ] Add proper error handling for algo orders
+- [x] Add `AlgoOrderType` and related types
+- [x] Implement `create_algo_order` endpoint
+- [x] Implement `cancel_algo_order` endpoint
+- [x] Implement `get_algo_orders` endpoint
+- [x] Add proper error handling for algo orders
 
 #### Day 5: Tests and Documentation
 
-- [ ] Write unit tests for new endpoints
-- [ ] Document the new APIs with examples
+- [x] Write unit tests for new endpoints
+- [x] Document the new APIs with examples
 - [ ] Submit PR to upstream `orderly-connector-rs` repository
-- [ ] Set up fork as temporary dependency for SOR
+- [x] Set up fork as temporary dependency for SOR
 
 ### Phase 2: SOR Integration (Week 2)
 
 #### Day 1-2: Core Implementation
 
-- [ ] Implement `OrderlyVenue` struct with configuration
-- [ ] Implement credential management functions
-- [ ] Create type conversion utilities (SOR ↔ Orderly SDK)
-- [ ] Implement `check_readiness` and `get_balance` methods
+- [x] Implement `OrderlyVenue` struct with configuration
+- [x] Implement credential management functions
+- [x] Create type conversion utilities (SOR ↔ Orderly SDK)
+- [x] Implement `check_readiness` and `get_balance` methods
 
 #### Day 3-4: Order Management
 
-- [ ] Implement `place_order` with pre-trade validation
-- [ ] Implement order status retrieval methods
-- [ ] Implement query capabilities with filtering
-- [ ] Add order cancellation functionality
+- [x] Implement `place_order` with pre-trade validation
+- [x] Implement order status retrieval methods
+- [x] Implement query capabilities with filtering
+- [x] Add order cancellation functionality
 
 #### Day 5: Trade History and Market Data
 
-- [ ] Implement `get_trades` and related methods
-- [ ] Implement market data retrieval (orderbook, ticker)
-- [ ] Add caching for frequently accessed data
-- [ ] Implement proper logging infrastructure
+- [x] Implement `get_trades` and related methods
+- [x] Implement market data retrieval (orderbook, ticker)
+- [x] Add caching for frequently accessed data
+- [x] Implement proper logging infrastructure
 
 ### Phase 3: Advanced Features (Week 3)
 
 #### Day 1-2: Algo Order Implementation
 
-- [ ] Implement `place_algo_order` with validation
-- [ ] Implement methods to query and manage algo orders
-- [ ] Add conversion between SOR and Orderly algo order types
-- [ ] Implement specific handling for stop-loss and take-profit orders
+- [x] Implement `place_algo_order` with validation
+- [x] Implement methods to query and manage algo orders
+- [x] Add conversion between SOR and Orderly algo order types
+- [x] Implement specific handling for stop-loss and take-profit orders
 
 #### Day 3-4: WebSocket Integration
 
-- [ ] Implement public market data streaming
-- [ ] Implement private user data streaming
-- [ ] Add real-time order and position tracking
-- [ ] Implement reconnection logic and error recovery
+- [x] Implement public market data streaming
+- [x] Implement private user data streaming
+- [x] Add real-time order and position tracking
+- [x] Implement reconnection logic and error recovery
 
 #### Day 5: Error Handling and Optimization
 
-- [ ] Implement retry mechanism for transient errors
-- [ ] Add detailed error mapping and context
-- [ ] Optimize performance with connection reuse
-- [ ] Add metrics for monitoring
+- [x] Implement retry mechanism for transient errors
+- [x] Add detailed error mapping and context
+- [x] Optimize performance with connection reuse
+- [x] Add metrics for monitoring
 
 ### Phase 4: Testing and Documentation (Week 4)
 
 #### Day 1-2: Unit and Integration Testing
 
-- [ ] Write comprehensive unit tests for all methods
-- [ ] Create integration tests with mock API responses
-- [ ] Test error handling and edge cases
-- [ ] Test WebSocket reconnection logic
+- [x] Write comprehensive unit tests for all methods
+- [x] Create integration tests with mock API responses
+- [x] Test error handling and edge cases
+- [x] Test WebSocket reconnection logic
 
 #### Day 3-4: Performance Testing
 
-- [ ] Conduct load testing with concurrent orders
-- [ ] Optimize memory usage and connection management
-- [ ] Tune caching strategies and retry parameters
-- [ ] Benchmark API call latency
+- [x] Conduct load testing with concurrent orders
+- [x] Optimize memory usage and connection management
+- [x] Tune caching strategies and retry parameters
+- [x] Benchmark API call latency
 
 #### Day 5: Documentation and Finalization
 
-- [ ] Update API documentation with examples
-- [ ] Finalize configuration and deployment scripts
-- [ ] Create operation runbook
-- [ ] Conduct final review and release
+- [x] Update API documentation with examples
+- [x] Finalize configuration and deployment scripts
+- [x] Create operation runbook
+- [x] Conduct final review and release
 
 ## Dependencies
 
@@ -150,79 +150,79 @@ tokio-test = "0.4"
 
 #### Day 1-2: Basic Order Examples
 
-- [ ] Create comprehensive example for basic order operations:
+- [x] Create comprehensive example for basic order operations:
   - Market order placement
   - Limit order placement
   - Order cancellation
   - Order modification
   - Bulk order operations
-- [ ] Add proper error handling and logging
-- [ ] Include configuration management
-- [ ] Add comments explaining each operation
+- [x] Add proper error handling and logging
+- [x] Include configuration management
+- [x] Add comments explaining each operation
 
 #### Day 3-4: Advanced Order Examples
 
-- [ ] Create examples for algorithmic orders:
+- [x] Create examples for algorithmic orders:
   - Stop-loss orders
   - Take-profit orders
   - Trailing stop orders
   - OCO (One-Cancels-Other) orders
-- [ ] Add position management examples
-- [ ] Include risk management examples
-- [ ] Add examples with different order parameters
+- [x] Add position management examples
+- [x] Include risk management examples
+- [x] Add examples with different order parameters
 
 #### Day 5: WebSocket Examples
 
-- [ ] Create WebSocket order tracking example:
+- [x] Create WebSocket order tracking example:
   - Real-time order updates
   - Execution reports
   - Position updates
   - Balance updates
-- [ ] Add reconnection handling
-- [ ] Include proper cleanup
+- [x] Add reconnection handling
+- [x] Include proper cleanup
 
 ### Tests (Week 6)
 
 #### Day 1-2: Unit Tests
 
-- [ ] Add unit tests for order validation:
+- [x] Add unit tests for order validation:
   - Parameter validation
   - Price/quantity limits
   - Symbol validation
   - Order type validation
-- [ ] Add tests for error handling:
+- [x] Add tests for error handling:
   - Network errors
   - API errors
   - Validation errors
-- [ ] Add tests for order state transitions
+- [x] Add tests for order state transitions
 
 #### Day 3-4: Integration Tests
 
-- [ ] Add integration tests for order lifecycle:
+- [x] Add integration tests for order lifecycle:
   - Order creation to execution
   - Order creation to cancellation
   - Order modification flows
   - Bulk order operations
-- [ ] Add tests for algorithmic orders:
+- [x] Add tests for algorithmic orders:
   - Trigger conditions
   - Execution behavior
   - Cancellation behavior
-- [ ] Add WebSocket integration tests:
+- [x] Add WebSocket integration tests:
   - Connection management
   - Message handling
   - State synchronization
 
 #### Day 5: Performance and Edge Case Tests
 
-- [ ] Add performance tests:
+- [x] Add performance tests:
   - Concurrent order operations
   - High frequency updates
   - Connection stress tests
-- [ ] Add edge case tests:
+- [x] Add edge case tests:
   - Invalid inputs
   - Boundary conditions
   - Error scenarios
-- [ ] Add cleanup and test utilities
+- [x] Add cleanup and test utilities
 
 ### Test Coverage Goals
 
