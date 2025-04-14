@@ -5,7 +5,7 @@ use serde_json::json;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 // Use the library crate name to import types in integration tests
-use orderly_connector_rs::types::{GetPublicTradesResponse, TradeData, WebSocketTradeData};
+use orderly_connector_rs::types::{GetPublicTradesResponse, PublicTradeData, WebSocketTradeData};
 
 /// Tests the WebSocket connection and basic subscription functionality.
 ///
@@ -200,58 +200,58 @@ async fn test_subscribe_trades() {
 fn test_public_trades_response_deserialization() {
     let json_data = json!({
         "success": true,
-        "data": [
-            {
-                "id": 1,
-                "symbol": "BTC_USD",
-                "side": "BUY",
-                "price": 50000.0,
-                "quantity": 0.1,
-                "ts": 1622548800000u64
-            }
-        ],
+        "data": {
+            "rows": [
+                {
+                    "symbol": "BTC_USD",
+                    "side": "BUY",
+                    "executed_price": 50000.0,
+                    "executed_quantity": 0.1,
+                    "executed_timestamp": 1622548800000u64
+                }
+            ]
+        },
         "timestamp": 1622548800000u64
     });
 
     let response: GetPublicTradesResponse = serde_json::from_value(json_data).unwrap();
     assert!(response.success);
-    assert_eq!(response.data.0.len(), 1);
-    assert_eq!(response.data.0[0].symbol, "BTC_USD");
+    assert_eq!(response.data.rows.len(), 1);
+    assert_eq!(response.data.rows[0].symbol, "BTC_USD");
 }
 
 #[test]
 fn test_trade_data_deserialization() {
     let json_data = json!({
-        "id": 1,
         "symbol": "BTC_USD",
         "side": "SELL",
-        "price": 49000.0,
-        "quantity": 0.2,
-        "ts": 1622548800000u64
+        "executed_price": 49000.0,
+        "executed_quantity": 0.2,
+        "executed_timestamp": 1622548800000u64
     });
 
-    let trade: TradeData = serde_json::from_value(json_data).unwrap();
+    let trade: PublicTradeData = serde_json::from_value(json_data).unwrap();
     assert_eq!(trade.side, "SELL");
-    assert_eq!(trade.price, 49000.0);
+    assert_eq!(trade.executed_price, 49000.0);
 }
 
 #[test]
 fn test_websocket_trade_data_deserialization() {
     let json_data = json!({
-        "data": [
-            {
-                "id": 2,
-                "symbol": "ETH_USD",
-                "side": "BUY",
-                "price": 2500.0,
-                "quantity": 1.0,
-                "ts": 1622548800000u64
-            }
-        ],
-        "ts": 1622548800000u64
+        "topic": "PERP_ETH_USDC@trade",
+        "ts": 1618820361552u64,
+        "data": {
+            "symbol": "PERP_ETH_USDC",
+            "price": 2500.0,
+            "size": 1.0,
+            "side": "BUY"
+        }
     });
 
     let ws_data: WebSocketTradeData = serde_json::from_value(json_data).unwrap();
-    assert_eq!(ws_data.data.len(), 1);
-    assert_eq!(ws_data.data[0].symbol, "ETH_USD");
+    assert_eq!(ws_data.topic, "PERP_ETH_USDC@trade");
+    assert_eq!(ws_data.data.symbol, "PERP_ETH_USDC");
+    assert_eq!(ws_data.data.price, 2500.0);
+    assert_eq!(ws_data.data.size, 1.0);
+    assert_eq!(ws_data.data.side, "BUY");
 }

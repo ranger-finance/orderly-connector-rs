@@ -1162,18 +1162,17 @@ pub type GetPublicTradesResponse = SuccessResponse<GetPublicTradesResponseData>;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct WebSocketTradeData {
-    pub data: Vec<TradeData>,
-    pub ts: u64, // Timestamp in milliseconds
+    pub topic: String,
+    pub ts: u64,
+    pub data: TradeData,
 }
 
-// Struct for WebSocket trades
 #[derive(Deserialize, Debug, Clone)]
 pub struct TradeData {
     pub symbol: String,
-    pub side: String, // "BUY" or "SELL"
-    pub executed_price: f64,
-    pub executed_quantity: f64,
-    pub executed_timestamp: u64, // Timestamp in milliseconds
+    pub price: f64,
+    pub size: f64,
+    pub side: String,
 }
 
 /// Optional parameters for querying positions under liquidation.
