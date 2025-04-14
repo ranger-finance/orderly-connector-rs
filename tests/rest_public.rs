@@ -456,7 +456,7 @@ async fn test_get_liquidated_positions() {
 /// - The API can retrieve recent market trades for a specific symbol.
 /// - The response structure is correct (success flag, data array).
 /// - The data array contains valid trade records.
-/// - Each trade record includes essential fields like id, symbol, side, price, quantity, and timestamp.
+/// - Each trade record includes essential fields like symbol, side, executed_price, executed_quantity, and executed_timestamp.
 ///
 /// Note: This test is ignored by default as it requires network access.
 /// It assumes the specified symbol (e.g., "PERP_ETH_USDC") has had recent trades
@@ -497,17 +497,16 @@ async fn test_get_market_trades() {
     // This assumes there have been recent trades for the symbol.
     assert!(
         !response.data.rows.is_empty(),
-        "Market trades data.rows array should not be empty for symbol {}",
+        "Market trades data array should not be empty for symbol {}",
         symbol
     );
 
     // Validate the structure and content of the first trade in the list
-    // Access the first element of the rows vector
+    // Access the first element of the trades vector
     let first_trade = &response.data.rows[0];
     println!("First Market Trade: {:#?}", first_trade);
 
     // Assert essential fields are present and have plausible values using correct field names
-    // assert!(first_trade.id > 0, "Trade ID should be positive"); // ID field does not exist
     assert_eq!(
         first_trade.symbol, symbol,
         "Trade symbol should match request"
@@ -517,17 +516,17 @@ async fn test_get_market_trades() {
         first_trade.side == "BUY" || first_trade.side == "SELL",
         "Trade side should be BUY or SELL string"
     );
-    // Check executed_price, executed_quantity, and executed_timestamp fields from PublicTradeData
+    // Check price, quantity, and timestamp fields from PublicTradeData
     assert!(
         first_trade.executed_price > 0.0,
-        "Trade executed_price should be positive"
+        "Trade price should be positive"
     );
     assert!(
         first_trade.executed_quantity > 0.0,
-        "Trade executed_quantity should be positive"
+        "Trade quantity should be positive"
     );
     assert!(
         first_trade.executed_timestamp > 0,
-        "Trade executed_timestamp should be positive"
+        "Trade timestamp should be positive"
     );
 }

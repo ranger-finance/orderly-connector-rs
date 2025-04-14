@@ -42,13 +42,13 @@ async fn test_create_get_cancel_order() {
 
     println!("Creating order for symbol: {}", symbol);
 
-    // Create a limit buy order
+    // Create a market buy order
     let order_req = CreateOrderRequest {
         symbol,
-        order_type: OrderType::Limit,
+        order_type: OrderType::Market,
         side: Side::Buy,
-        order_price: Some(500.0), // Reduced from 1000.0
-        order_quantity: 0.001,    // Reduced from 0.01
+        order_price: None,    // Market orders don't need a price
+        order_quantity: 0.01, // Small test quantity
         order_amount: None,
         client_order_id: None,
         visible_quantity: None,

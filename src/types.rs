@@ -1144,19 +1144,18 @@ pub struct WebSocketPositionByPerp {
     pub liquidator_fee: f64,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PublicTradeData {
     pub symbol: String,
-    pub side: String, // "BUY" or "SELL"
+    pub side: String,
     pub executed_price: f64,
     pub executed_quantity: f64,
-    pub executed_timestamp: u64, // Timestamp in milliseconds
+    pub executed_timestamp: u64,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GetPublicTradesResponseData {
-    pub rows: Vec<PublicTradeData>,   // Use the new struct
-    pub meta: Option<PaginationMeta>, // Public trades might also have pagination
+    pub rows: Vec<PublicTradeData>,
 }
 
 pub type GetPublicTradesResponse = SuccessResponse<GetPublicTradesResponseData>;
@@ -1167,15 +1166,14 @@ pub struct WebSocketTradeData {
     pub ts: u64, // Timestamp in milliseconds
 }
 
-// Struct for WebSocket trades (likely has 'id')
+// Struct for WebSocket trades
 #[derive(Deserialize, Debug, Clone)]
 pub struct TradeData {
-    pub id: u64,
     pub symbol: String,
     pub side: String, // "BUY" or "SELL"
-    pub price: f64,
-    pub quantity: f64,
-    pub ts: u64, // Timestamp in milliseconds
+    pub executed_price: f64,
+    pub executed_quantity: f64,
+    pub executed_timestamp: u64, // Timestamp in milliseconds
 }
 
 /// Optional parameters for querying positions under liquidation.

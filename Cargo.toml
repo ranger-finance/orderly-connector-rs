@@ -34,8 +34,11 @@ bs58 = "0.5"
 serde_qs = "0.13"
 tokio-tungstenite = { version = "0.17", features = ["rustls-tls-native-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 dotenv = "0.15" # Added here for tests and examples
 env_logger = "0.11" # For initializing logger in examples/tests
 mockito = "1.2" # For mocking HTTP requests in tests
+tokio-test = "0.4"

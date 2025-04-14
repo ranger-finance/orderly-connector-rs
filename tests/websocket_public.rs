@@ -215,8 +215,8 @@ fn test_public_trades_response_deserialization() {
 
     let response: GetPublicTradesResponse = serde_json::from_value(json_data).unwrap();
     assert!(response.success);
-    assert_eq!(response.data.rows.len(), 1);
-    assert_eq!(response.data.rows[0].symbol, "BTC_USD");
+    assert_eq!(response.data.0.len(), 1);
+    assert_eq!(response.data.0[0].symbol, "BTC_USD");
 }
 
 #[test]
