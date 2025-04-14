@@ -969,21 +969,353 @@ impl OrderlyService {
             .await
     }
 
-    // // ===== Algo Orders =====
+    // ===== Algo Orders =====
 
-    // /// Create an algorithmic order (e.g., stop order).
-    // /// POST /v1/algo/order
-    // ///
-    // /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/create-algo-order
-    // pub async fn create_algo_order(
-    //     &self,
-    //     algo_order_req: CreateAlgoOrderRequest<'_>,
-    // ) -> Result<Value> {
-    //     let request = self
-    //         .build_signed_request(Method::POST, "/v1/algo/order", Some(algo_order_req))
-    //         .await?;
-    //     self.send_request::<Value>(request).await
-    // }
+    /// Creates a new algorithmic order
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - Parameters for creating the algo order
+    ///
+    /// # Returns
+    ///
+    /// Details of the created algo order or an error
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use orderly_connector_rs::{
+    ///     rest::Client,
+    ///     types::{AlgoOrderType, CreateAlgoOrderRequest, Side},
+    /// };
+    /// use rust_decimal_macros::dec;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new(
+    ///         "https://testnet-api-evm.orderly.org",
+    ///         Some("your_api_key"),
+    ///         Some("your_api_secret"),
+    ///         Some("your_account_id"),
+    ///     )?;
+    ///
+    ///     let request = CreateAlgoOrderRequest {
+    ///         symbol: "PERP_BTC_USDC".to_string(),
+    ///         order_type: AlgoOrderType::StopMarket,
+    ///         side: Side::Sell,
+    ///         quantity: dec!(0.1),
+    ///         trigger_price: dec!(50000),
+    ///         limit_price: None,
+    ///         trailing_delta: None,
+    ///         client_order_id: Some("my_stop_loss_1".to_string()),
+    ///         reduce_only: Some(true),
+    ///     };
+    ///
+    ///     let order = client.create_algo_order(request).await?;
+    ///     println!("Created algo order: {:?}", order);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn create_algo_order(
+        &self,
+        request: CreateAlgoOrderRequest,
+    ) -> Result<AlgoOrderDetails, OrderlyError> {
+        // Validate request
+        if request.symbol.is_empty() {
+            return Err(OrderlyError::ValidationError("Symbol is required".to_string()));
+        }
+
+        // Build path and URL
+        let path = "/v1/algo-order";
+        let url = format!("{}{}", self.base_url, path);
+
+        // Serialize request body
+        let body = serde_json::to_string(&request)
+            .map_err(|e| OrderlyError::JsonEncodeError(e.to_string()))?;
+
+        // Create HTTP request
+        let mut req_builder = self.http_client.post(&url).body(body);
+
+        // Add authentication if credentials are available
+        if let (Some(key), Some(secret), Some(account_id)) =
+            (&self.orderly_key, &self.orderly_secret, &self.account_id)
+        {
+            req_builder = self.add_auth_headers(
+                req_builder,
+                "POST",
+                path,
+                None,
+                key,
+                secret,
+                account_id,
+            )?;
+        } else {
+            return Err(OrderlyError::MissingCredentials);
+        }
+
+        // Send request
+        let response = req_builder
+            .send()
+            .await
+            .map_err(|e| OrderlyError::NetworkError(e.to_string()))?;
+
+        // Handle response
+        self.handle_response::<OrderlyResponse<AlgoOrderDetails>>(response)
+            .await
+            .map(|resp| resp.data)
+    }
+
+    /// Cancels an existing algorithmic order
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - Trading pair symbol
+    /// * `algo_order_id` - ID of the algo order to cancel
+    ///
+    /// # Returns
+    ///
+    /// Details of the cancelled algo order or an error
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use orderly_connector_rs::rest::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new(
+    ///         "https://testnet-api-evm.orderly.org",
+    ///         Some("your_api_key"),
+    ///         Some("your_api_secret"),
+    ///         Some("your_account_id"),
+    ///     )?;
+    ///
+    ///     let order = client.cancel_algo_order("PERP_BTC_USDC", "12345").await?;
+    ///     println!("Cancelled algo order: {:?}", order);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn cancel_algo_order(
+        &self,
+        symbol: &str,
+        algo_order_id: &str,
+    ) -> Result<AlgoOrderDetails, OrderlyError> {
+        // Validate inputs
+        if symbol.is_empty() {
+            return Err(OrderlyError::ValidationError("Symbol is required".to_string()));
+        }
+        if algo_order_id.is_empty() {
+            return Err(OrderlyError::ValidationError("Algo order ID is required".to_string()));
+        }
+
+        // Build path and URL
+        let path = format!("/v1/algo-order/{}/{}", symbol, algo_order_id);
+        let url = format!("{}{}", self.base_url, path);
+
+        // Create HTTP request
+        let mut req_builder = self.http_client.delete(&url);
+
+        // Add authentication if credentials are available
+        if let (Some(key), Some(secret), Some(account_id)) =
+            (&self.orderly_key, &self.orderly_secret, &self.account_id)
+        {
+            req_builder = self.add_auth_headers(
+                req_builder,
+                "DELETE",
+                &path,
+                None,
+                key,
+                secret,
+                account_id,
+            )?;
+        } else {
+            return Err(OrderlyError::MissingCredentials);
+        }
+
+        // Send request
+        let response = req_builder
+            .send()
+            .await
+            .map_err(|e| OrderlyError::NetworkError(e.to_string()))?;
+
+        // Handle response
+        self.handle_response::<OrderlyResponse<AlgoOrderDetails>>(response)
+            .await
+            .map(|resp| resp.data)
+    }
+
+    /// Cancels an algorithmic order by its client order ID
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - Trading pair symbol
+    /// * `client_order_id` - Client-provided order ID
+    ///
+    /// # Returns
+    ///
+    /// Details of the cancelled algo order or an error
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use orderly_connector_rs::rest::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new(
+    ///         "https://testnet-api-evm.orderly.org",
+    ///         Some("your_api_key"),
+    ///         Some("your_api_secret"),
+    ///         Some("your_account_id"),
+    ///     )?;
+    ///
+    ///     let order = client.cancel_algo_order_by_client_id("PERP_BTC_USDC", "my_stop_loss_1").await?;
+    ///     println!("Cancelled algo order: {:?}", order);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn cancel_algo_order_by_client_id(
+        &self,
+        symbol: &str,
+        client_order_id: &str,
+    ) -> Result<AlgoOrderDetails, OrderlyError> {
+        // Validate inputs
+        if symbol.is_empty() {
+            return Err(OrderlyError::ValidationError("Symbol is required".to_string()));
+        }
+        if client_order_id.is_empty() {
+            return Err(OrderlyError::ValidationError("Client order ID is required".to_string()));
+        }
+
+        // Build path and URL
+        let path = format!("/v1/algo-order/{}/by-client-order-id/{}", symbol, client_order_id);
+        let url = format!("{}{}", self.base_url, path);
+
+        // Create HTTP request
+        let mut req_builder = self.http_client.delete(&url);
+
+        // Add authentication if credentials are available
+        if let (Some(key), Some(secret), Some(account_id)) =
+            (&self.orderly_key, &self.orderly_secret, &self.account_id)
+        {
+            req_builder = self.add_auth_headers(
+                req_builder,
+                "DELETE",
+                &path,
+                None,
+                key,
+                secret,
+                account_id,
+            )?;
+        } else {
+            return Err(OrderlyError::MissingCredentials);
+        }
+
+        // Send request
+        let response = req_builder
+            .send()
+            .await
+            .map_err(|e| OrderlyError::NetworkError(e.to_string()))?;
+
+        // Handle response
+        self.handle_response::<OrderlyResponse<AlgoOrderDetails>>(response)
+            .await
+            .map(|resp| resp.data)
+    }
+
+    /// Gets a list of algorithmic orders with optional filtering
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - Optional query parameters to filter the results
+    ///
+    /// # Returns
+    ///
+    /// A paginated list of algo orders or an error
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use orderly_connector_rs::{
+    ///     rest::Client,
+    ///     types::{AlgoOrderType, GetAlgoOrdersParams},
+    /// };
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::new(
+    ///         "https://testnet-api-evm.orderly.org",
+    ///         Some("your_api_key"),
+    ///         Some("your_api_secret"),
+    ///         Some("your_account_id"),
+    ///     )?;
+    ///
+    ///     // Get all algo orders
+    ///     let response = client.get_algo_orders(GetAlgoOrdersParams::default()).await?;
+    ///     println!("Found {} algo orders", response.rows.len());
+    ///
+    ///     // Get algo orders with filters
+    ///     let params = GetAlgoOrdersParams {
+    ///         symbol: Some("PERP_BTC_USDC".to_string()),
+    ///         status: Some("NEW".to_string()),
+    ///         side: Some("SELL".to_string()),
+    ///         order_type: Some(AlgoOrderType::StopMarket),
+    ///         page: Some(1),
+    ///         size: Some(10),
+    ///     };
+    ///     
+    ///     let response = client.get_algo_orders(params).await?;
+    ///     println!("Found {} stop market sell orders", response.rows.len());
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn get_algo_orders(
+        &self,
+        params: GetAlgoOrdersParams,
+    ) -> Result<GetAlgoOrdersResponse, OrderlyError> {
+        // Convert params to query string
+        let query_string = serde_urlencoded::to_string(&params)
+            .map_err(|e| OrderlyError::JsonEncodeError(e.to_string()))?;
+
+        // Build path and URL
+        let path = format!("/v1/algo-orders?{}", query_string);
+        let url = format!("{}{}", self.base_url, path);
+
+        // Create HTTP request
+        let mut req_builder = self.http_client.get(&url);
+
+        // Add authentication if credentials are available
+        if let (Some(key), Some(secret), Some(account_id)) =
+            (&self.orderly_key, &self.orderly_secret, &self.account_id)
+        {
+            req_builder = self.add_auth_headers(
+                req_builder,
+                "GET",
+                &path,
+                None,
+                key,
+                secret,
+                account_id,
+            )?;
+        } else {
+            return Err(OrderlyError::MissingCredentials);
+        }
+
+        // Send request
+        let response = req_builder
+            .send()
+            .await
+            .map_err(|e| OrderlyError::NetworkError(e.to_string()))?;
+
+        // Handle response
+        self.handle_response::<OrderlyResponse<GetAlgoOrdersResponse>>(response)
+            .await
+            .map(|resp| resp.data)
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
