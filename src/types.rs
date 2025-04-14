@@ -62,6 +62,17 @@ pub enum OrderStatus {
     // There might be more statuses, add as needed based on API docs
 }
 
+/// Types of algorithmic orders supported by Orderly
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AlgoOrderType {
+    StopMarket,
+    StopLimit,
+    TakeProfitMarket,
+    TakeProfitLimit,
+    TrailingStop,
+}
+
 // --- Request Structs ---
 
 /// Request structure for creating a new order.
@@ -126,6 +137,41 @@ pub struct GetOrdersParams<'a> {
     // Add is_triggered etc. if needed
 }
 
+/// Request parameters for creating an algorithmic order
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateAlgoOrderRequest {
+    pub symbol: String,
+    pub order_type: AlgoOrderType,
+    pub side: Side,
+    pub quantity: Decimal,
+    pub trigger_price: Decimal,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit_price: Option<Decimal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trailing_delta: Option<Decimal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reduce_only: Option<bool>,
+}
+
+/// Parameters for querying algorithmic orders
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct GetAlgoOrdersParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub side: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_type: Option<AlgoOrderType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u32>,
+}
+
 // --- Response Structs ---
 
 /// A generic success response structure from the Orderly API.
@@ -187,6 +233,34 @@ pub struct Order {
     pub created_time: u64,
     pub updated_time: u64,
     // Add reduce_only, source, trigger_price etc. if present in actual response
+}
+
+/// Response structure for algorithmic order details
+#[derive(Debug, Clone, Deserialize)]
+pub struct AlgoOrderDetails {
+    pub algo_order_id: String,
+    pub client_order_id: Option<String>,
+    pub symbol: String,
+    pub order_type: AlgoOrderType,
+    pub side: Side,
+    pub quantity: Decimal,
+    pub trigger_price: Decimal,
+    pub limit_price: Option<Decimal>,
+    pub trailing_delta: Option<Decimal>,
+    pub status: OrderStatus,
+    pub reduce_only: bool,
+    pub triggered_order_id: Option<String>,
+    pub created_time: i64,
+    pub updated_time: i64,
+}
+
+/// Response structure for a list of algorithmic orders
+#[derive(Debug, Clone, Deserialize)]
+pub struct GetAlgoOrdersResponse {
+    pub rows: Vec<AlgoOrderDetails>,
+    pub total: u32,
+    pub current_page: u32,
+    pub page_size: u32,
 }
 
 /// Response data for a create order request.
@@ -787,21 +861,6 @@ impl<'a> IntoIterator for &'a GetOpenInterestResponse {
 }
 
 // ===== Algo Orders =====
-
-// TODO: Define request/response structs for Algo Orders
-// pub struct CreateAlgoOrderRequest ...
-// pub type CreateAlgoOrderResponse = SuccessResponse<...>;
-
-// === Get Positions Under Liquidation ===
-
-/// Optional parameters for querying positions under liquidation.
-#[derive(Serialize, Debug, Default, Clone)]
-pub struct GetPositionsUnderLiquidationParams {
-    pub start_t: Option<u64>, // 13-digit timestamp
-    pub end_t: Option<u64>,   // 13-digit timestamp
-    pub page: Option<u32>,
-    pub size: Option<u32>, // Default is 60 according to docs, but API might default to 25? Let caller decide.
-}
 
 /// Represents a single position within a liquidation event.
 #[derive(Deserialize, Debug, Clone)]
