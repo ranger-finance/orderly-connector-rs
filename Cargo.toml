@@ -38,3 +38,4 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 [dev-dependencies]
 dotenv = "0.15" # Added here for tests and examples
 env_logger = "0.11" # For initializing logger in examples/tests
+mockito = "1.2" # For mocking HTTP requests in tests

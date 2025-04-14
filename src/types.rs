@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // --- Enums ---
 
@@ -60,6 +61,12 @@ pub enum OrderStatus {
     Expired,
     PartialFilled,
     // There might be more statuses, add as needed based on API docs
+}
+
+impl fmt::Display for OrderStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 /// Types of algorithmic orders supported by Orderly
@@ -143,12 +150,12 @@ pub struct CreateAlgoOrderRequest {
     pub symbol: String,
     pub order_type: AlgoOrderType,
     pub side: Side,
-    pub quantity: Decimal,
-    pub trigger_price: Decimal,
+    pub quantity: f64,
+    pub trigger_price: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit_price: Option<Decimal>,
+    pub limit_price: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub trailing_delta: Option<Decimal>,
+    pub trailing_delta: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -243,10 +250,10 @@ pub struct AlgoOrderDetails {
     pub symbol: String,
     pub order_type: AlgoOrderType,
     pub side: Side,
-    pub quantity: Decimal,
-    pub trigger_price: Decimal,
-    pub limit_price: Option<Decimal>,
-    pub trailing_delta: Option<Decimal>,
+    pub quantity: f64,
+    pub trigger_price: f64,
+    pub limit_price: Option<f64>,
+    pub trailing_delta: Option<f64>,
     pub status: OrderStatus,
     pub reduce_only: bool,
     pub triggered_order_id: Option<String>,
@@ -1169,4 +1176,14 @@ pub struct TradeData {
     pub price: f64,
     pub quantity: f64,
     pub ts: u64, // Timestamp in milliseconds
+}
+
+/// Optional parameters for querying positions under liquidation.
+#[derive(Serialize, Debug, Default, Clone)]
+pub struct GetPositionsUnderLiquidationParams {
+    pub symbol: Option<String>,
+    pub start_t: Option<u64>, // 13-digit timestamp
+    pub end_t: Option<u64>,   // 13-digit timestamp
+    pub page: Option<u32>,
+    pub size: Option<u32>,
 }

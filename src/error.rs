@@ -106,8 +106,8 @@ pub enum OrderlyError {
     ReqwestError(#[from] reqwest::Error),
 
     /// Represents errors during JSON serialization or deserialization.
-    #[error("JSON Serialization/Deserialization Error: {0}")]
-    SerdeError(#[from] serde_json::Error),
+    #[error("JSON Deserialization Error: {0}")]
+    Serde(#[from] serde_json::Error),
 
     /// Represents errors during URL parsing.
     #[error("URL Parsing Error: {0}")]
@@ -144,4 +144,10 @@ pub enum OrderlyError {
     /// Represents missing credentials errors.
     #[error("Missing credentials")]
     MissingCredentials,
+}
+
+impl From<bs58::decode::Error> for OrderlyError {
+    fn from(err: bs58::decode::Error) -> Self {
+        OrderlyError::AuthenticationError(format!("Failed to decode base58 secret key: {}", err))
+    }
 }
