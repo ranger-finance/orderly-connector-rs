@@ -128,4 +128,20 @@ pub enum OrderlyError {
     /// Represents errors during I/O operations.
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
+
+    /// Represents network errors.
+    #[error("Network error: {0}")]
+    NetworkError(String),
+
+    /// Represents JSON encoding errors.
+    #[error("JSON encode error: {0}")]
+    JsonEncodeError(String),
+
+    /// Represents validation errors.
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
+    /// Represents missing credentials errors.
+    #[error("Missing credentials")]
+    MissingCredentials,
 }
