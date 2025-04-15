@@ -34,8 +34,7 @@ pub struct Credentials<'a> {
 /// # Examples
 ///
 /// ```no_run
-/// use orderly_connector_rs::rest::OrderlyService;
-/// use std::sync::Arc;
+/// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
 /// use orderly_connector_rs::error::Result;
 ///
 /// #[tokio::main]
@@ -93,12 +92,38 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// use orderly_connector_rs::rest::OrderlyService;
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::error::Result;
     ///
-    /// let service = OrderlyService::new(
-    ///     true, // is_testnet
-    ///     Some(30), // timeout_sec
-    /// ).expect("Failed to create service");
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     // Optional: Load credentials from .env file
+    ///     // dotenv::dotenv().ok();
+    ///     // let api_key = std::env::var("ORDERLY_API_KEY").expect("ORDERLY_API_KEY not set");
+    ///     // let secret = std::env::var("ORDERLY_SECRET").expect("ORDERLY_SECRET not set");
+    ///     // let account_id = std::env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
+    ///     // Example credentials (replace with actual values or load from env)
+    ///     // use orderly_connector_rs::rest::client::Credentials;
+    ///     // let creds = Credentials {
+    ///     //     orderly_key: api_key,
+    ///     //     orderly_secret: secret,
+    ///     //     orderly_account_id: account_id,
+    ///     // };
+    ///
+    ///     // Create a new service for the testnet, no timeout
+    ///     let service = OrderlyService::new(true, None)?;
+    ///
+    ///     // Example: Get system status (public endpoint, no credentials needed)
+    ///     let status = service.get_system_status().await?;
+    ///     println!("System Status: {:?}", status);
+    ///
+    ///     // To call private endpoints, ensure credentials are loaded (e.g., via .env)
+    ///     // and use methods that require authentication, like get_account_info.
+    ///     // let account_info = service.get_account_info().await?;
+    ///     // println!("Account Info: {:?}", account_info);
+    ///
+    ///     Ok(())
+    /// }
     /// ```
     pub fn new(is_testnet: bool, timeout_sec: Option<u64>) -> Result<Self> {
         let base_url_str = if is_testnet {
@@ -374,13 +399,21 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// let status = service.get_system_status().await.expect("Failed to get status");
-    /// println!("System status: {:?}", status);
-    /// # }
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::error::Result;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     let status = service.get_system_status().await?;
+    ///     println!("System status: {:?}", status);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/public/get-system-status
@@ -407,16 +440,24 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// // Get info for all symbols
-    /// let all_info = service.get_exchange_info(None).await.expect("Failed to get info");
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::error::Result;
     ///
-    /// // Get info for a specific symbol
-    /// let symbol_info = service.get_exchange_info(Some("PERP_ETH_USDC")).await.expect("Failed to get symbol info");
-    /// # }
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     // Get info for all symbols
+    ///     let all_info = service.get_exchange_info(None).await?;
+    ///
+    ///     // Get info for a specific symbol
+    ///     let symbol_info = service.get_exchange_info(Some("PERP_ETH_USDC")).await?;
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/public/get-exchange-info
@@ -457,13 +498,21 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// let funding_rates = service.get_funding_rate_history().await.expect("Failed to get funding rates");
-    /// println!("Funding rates: {:?}", funding_rates);
-    /// # }
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::error::Result;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     let funding_rates = service.get_funding_rate_history().await?;
+    ///     println!("Funding rates: {:?}", funding_rates);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-funding-rate-for-all-markets
@@ -487,13 +536,21 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// let open_interests = service.get_open_interest().await.expect("Failed to get open interests");
-    /// println!("Open interests: {:?}", open_interests);
-    /// # }
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::error::Result;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     let open_interests = service.get_open_interest().await?;
+    ///     println!("Open interests: {:?}", open_interests);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-open-interests-for-all-symbols
@@ -517,13 +574,21 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// let price_changes = service.get_price_changes().await.expect("Failed to get price changes");
-    /// println!("Price changes: {:?}", price_changes);
-    /// # }
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::error::Result;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     let price_changes = service.get_price_changes().await?;
+    ///     println!("Price changes: {:?}", price_changes);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-price-info-for-all-symbols
@@ -549,20 +614,28 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # use orderly_connector_rs::types::GetPositionsUnderLiquidationParams;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// // Get all positions currently under liquidation (first page)
-    /// let positions = service.get_positions_under_liquidation(None).await.expect("Failed");
-    /// println!("Positions under liquidation: {:?}", positions);
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::types::GetPositionsUnderLiquidationParams;
+    /// use orderly_connector_rs::error::Result;
     ///
-    /// // Get positions with pagination
-    /// let params = GetPositionsUnderLiquidationParams { page: Some(2), size: Some(10), ..Default::default() };
-    /// let positions_page2 = service.get_positions_under_liquidation(Some(params)).await.expect("Failed");
-    /// println!("Positions page 2: {:?}", positions_page2);
-    /// # }
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     // Get all positions currently under liquidation (first page)
+    ///     let positions = service.get_positions_under_liquidation(None).await?;
+    ///     println!("Positions under liquidation: {:?}", positions);
+    ///
+    ///     // Get positions with pagination
+    ///     let params = GetPositionsUnderLiquidationParams { page: Some(2), size: Some(10), ..Default::default() };
+    ///     let positions_page2 = service.get_positions_under_liquidation(Some(params)).await?;
+    ///     println!("Positions page 2: {:?}", positions_page2);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-positions-under-liquidation#get-positions-under-liquidation
@@ -601,20 +674,28 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # use orderly_connector_rs::types::GetLiquidatedPositionsParams;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// // Get all liquidated positions (first page)
-    /// let positions = service.get_liquidated_positions(None).await.expect("Failed");
-    /// println!("Liquidated positions: {:?}", positions);
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::types::GetLiquidatedPositionsParams;
+    /// use orderly_connector_rs::error::Result;
     ///
-    /// // Get positions with pagination
-    /// let params = GetLiquidatedPositionsParams { page: Some(2), size: Some(10), ..Default::default() };
-    /// let positions_page2 = service.get_liquidated_positions(Some(params)).await.expect("Failed");
-    /// println!("Liquidated positions page 2: {:?}", positions_page2);
-    /// # }
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     // Get all liquidated positions (first page)
+    ///     let positions = service.get_liquidated_positions(None).await?;
+    ///     println!("Liquidated positions: {:?}", positions);
+    ///
+    ///     // Get positions with pagination
+    ///     let params = GetLiquidatedPositionsParams { page: Some(2), size: Some(10), ..Default::default() };
+    ///     let positions_page2 = service.get_liquidated_positions(Some(params)).await?;
+    ///     println!("Liquidated positions page 2: {:?}", positions_page2);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-liquidated-positions-info
@@ -652,13 +733,21 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// # use orderly_connector_rs::rest::OrderlyService;
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// # let service = OrderlyService::new(true, None).unwrap();
-    /// let trades = service.get_market_trades("PERP_ETH_USDC").await.expect("Failed to get market trades");
-    /// println!("Market trades: {:?}", trades);
-    /// # }
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::error::Result;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<()> {
+    ///     let creds = Credentials {
+    ///         orderly_key: "your_api_key",
+    ///         orderly_secret: "your_api_secret",
+    ///         orderly_account_id: "your_account_id",
+    ///     };
+    ///     let service = OrderlyService::new(true, None)?;
+    ///     let trades = service.get_market_trades("PERP_ETH_USDC").await?;
+    ///     println!("Market trades: {:?}", trades);
+    ///     Ok(())
+    /// }
     /// ```
     ///
     /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/public/get-market-trades
@@ -1034,8 +1123,8 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
     /// use orderly_connector_rs::{
-    ///     rest::{Client, Credentials},
     ///     types::{AlgoOrderType, CreateAlgoOrderRequest, Side},
     ///     error::OrderlyError
     /// };
@@ -1048,7 +1137,7 @@ impl OrderlyService {
     ///         orderly_secret: "your_api_secret",
     ///         orderly_account_id: "your_account_id",
     ///     };
-    ///     let service = Client::new("https://testnet-api-evm.orderly.network", None)?;
+    ///     let service = OrderlyService::new(true, None)?;
     ///
     ///     let request = CreateAlgoOrderRequest {
     ///         symbol: "PERP_BTC_USDC".to_string(),
@@ -1127,7 +1216,7 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// use orderly_connector_rs::rest::{Client, Credentials};
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
     /// use orderly_connector_rs::error::OrderlyError;
     ///
     /// #[tokio::main]
@@ -1137,7 +1226,7 @@ impl OrderlyService {
     ///         orderly_secret: "your_api_secret",
     ///         orderly_account_id: "your_account_id",
     ///     };
-    ///     let service = Client::new("https://testnet-api-evm.orderly.network", None)?;
+    ///     let service = OrderlyService::new(true, None)?;
     ///
     ///     match service.cancel_algo_order(&creds, "PERP_BTC_USDC", "123456").await {
     ///         Ok(response) => println!("Cancelled algo order: {:?}", response.data),
@@ -1193,7 +1282,7 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// use orderly_connector_rs::rest::{Client, Credentials};
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
     /// use orderly_connector_rs::error::OrderlyError;
     ///
     /// #[tokio::main]
@@ -1203,7 +1292,7 @@ impl OrderlyService {
     ///         orderly_secret: "your_api_secret",
     ///         orderly_account_id: "your_account_id",
     ///     };
-    ///     let service = Client::new("https://testnet-api-evm.orderly.network", None)?;
+    ///     let service = OrderlyService::new(true, None)?;
     ///
     ///     match service.cancel_algo_order_by_client_id(&creds, "PERP_BTC_USDC", "my_stop_loss_1").await {
     ///         Ok(response) => println!("Cancelled algo order: {:?}", response.data),
@@ -1261,11 +1350,9 @@ impl OrderlyService {
     /// # Examples
     ///
     /// ```no_run
-    /// use orderly_connector_rs::{
-    ///     rest::{Client, Credentials},
-    ///     types::{AlgoOrderType, GetAlgoOrdersParams},
-    ///     error::OrderlyError
-    /// };
+    /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
+    /// use orderly_connector_rs::types::{AlgoOrderType, GetAlgoOrdersParams, Side};
+    /// use orderly_connector_rs::error::OrderlyError;
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -1274,27 +1361,21 @@ impl OrderlyService {
     ///         orderly_secret: "your_api_secret",
     ///         orderly_account_id: "your_account_id",
     ///     };
-    ///     let service = Client::new("https://testnet-api-evm.orderly.network", None)?;
+    ///     let service = OrderlyService::new(true, None)?;
     ///
     ///     // Get all algo orders
-    ///     match service.get_algo_orders(&creds, GetAlgoOrdersParams::default()).await {
-    ///         Ok(response) => println!("Found {} algo orders", response.data.rows.len()),
-    ///         Err(e) => println!("Failed to get algo orders: {}", e),
-    ///     }
-    ///
-    ///     // Get algo orders with filters
     ///     let params = GetAlgoOrdersParams {
     ///         symbol: Some("PERP_BTC_USDC".to_string()),
-    ///         status: Some("NEW".to_string()),
-    ///         side: Some("SELL".to_string()),
     ///         order_type: Some(AlgoOrderType::StopMarket),
+    ///         side: Some(Side::Sell),
+    ///         status: None,
     ///         page: Some(1),
     ///         size: Some(10),
     ///     };
     ///
     ///     match service.get_algo_orders(&creds, params).await {
-    ///         Ok(response) => println!("Found {} stop market sell orders", response.data.rows.len()),
-    ///         Err(e) => println!("Failed to get algo orders with filters: {}", e),
+    ///         Ok(response) => println!("Algo orders: {:?}", response.data),
+    ///         Err(e) => println!("Failed to get algo orders: {}", e),
     ///     }
     ///
     ///     Ok(())

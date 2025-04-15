@@ -170,7 +170,7 @@ pub struct GetAlgoOrdersParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub side: Option<String>,
+    pub side: Option<Side>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_type: Option<AlgoOrderType>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1144,38 +1144,35 @@ pub struct WebSocketPositionByPerp {
     pub liquidator_fee: f64,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct PublicTradeData {
     pub symbol: String,
-    pub side: String, // "BUY" or "SELL"
+    pub side: String,
     pub executed_price: f64,
     pub executed_quantity: f64,
-    pub executed_timestamp: u64, // Timestamp in milliseconds
+    pub executed_timestamp: u64,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GetPublicTradesResponseData {
-    pub rows: Vec<PublicTradeData>,   // Use the new struct
-    pub meta: Option<PaginationMeta>, // Public trades might also have pagination
+    pub rows: Vec<PublicTradeData>,
 }
 
 pub type GetPublicTradesResponse = SuccessResponse<GetPublicTradesResponseData>;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct WebSocketTradeData {
-    pub data: Vec<TradeData>,
-    pub ts: u64, // Timestamp in milliseconds
+    pub topic: String,
+    pub ts: u64,
+    pub data: TradeData,
 }
 
-// Struct for WebSocket trades (likely has 'id')
 #[derive(Deserialize, Debug, Clone)]
 pub struct TradeData {
-    pub id: u64,
     pub symbol: String,
-    pub side: String, // "BUY" or "SELL"
     pub price: f64,
-    pub quantity: f64,
-    pub ts: u64, // Timestamp in milliseconds
+    pub size: f64,
+    pub side: String,
 }
 
 /// Optional parameters for querying positions under liquidation.
