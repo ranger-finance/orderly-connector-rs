@@ -1351,7 +1351,7 @@ impl OrderlyService {
     ///
     /// ```no_run
     /// use orderly_connector_rs::rest::client::{OrderlyService, Credentials};
-    /// use orderly_connector_rs::types::{AlgoOrderType, GetAlgoOrdersParams};
+    /// use orderly_connector_rs::types::{AlgoOrderType, GetAlgoOrdersParams, Side};
     /// use orderly_connector_rs::error::OrderlyError;
     ///
     /// #[tokio::main]
@@ -1367,6 +1367,7 @@ impl OrderlyService {
     ///     let params = GetAlgoOrdersParams {
     ///         symbol: Some("PERP_BTC_USDC".to_string()),
     ///         order_type: Some(AlgoOrderType::StopMarket),
+    ///         side: Some(Side::Sell),
     ///         status: None,
     ///         page: Some(1),
     ///         size: Some(10),
