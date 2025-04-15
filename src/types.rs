@@ -84,16 +84,56 @@ pub enum AlgoOrderType {
 
 /// Request structure for creating a new order.
 ///
+/// # Understanding Trading Pairs
+///
+/// In a trading pair like "PERP_ETH_USDC":
+/// * Base currency (ETH) - The asset you are buying or selling
+/// * Quote currency (USDC) - The asset used to price and pay for the base currency
+///
+/// For example:
+/// * When buying ETH with USDC: order_quantity is in ETH (base), order_amount is in USDC (quote)
+/// * When selling ETH for USDC: order_quantity is in ETH (base)
+///
+/// # Order Type Behaviors
+///
+/// * `Market` - Matches until full size is executed. If size is too large or exceeds price limit,
+///   remaining quantity is cancelled.
+/// * `Ioc` (Immediate or Cancel) - Matches as much as possible at order_price. Remaining quantity
+///   is cancelled if not fully executed.
+/// * `Fok` (Fill or Kill) - Either fully executed at order_price or completely cancelled.
+/// * `PostOnly` - Cancelled without execution if it would match with any maker trades.
+/// * `Ask` - Order price guaranteed to be best ask price when accepted.
+/// * `Bid` - Order price guaranteed to be best bid price when accepted.
+///
+/// # Special Parameter Behaviors
+///
+/// * `visible_quantity` - Maximum quantity shown on orderbook. Defaults to order_quantity.
+///   - Must not be negative or larger than order_quantity
+///   - If 0, order is hidden from orderbook
+///   - Not applicable for Market/IOC/FOK orders
+///
+/// * `order_amount` - Alternative to order_quantity for Market/Bid/Ask orders
+///   - Specifies order size in quote currency (e.g., USDC) instead of base currency
+///   - Cannot be used together with order_quantity (order will be rejected)
+///   - Must have 8 or fewer decimal places
+///   - For BUY orders: use order_amount (specify USDC amount)
+///   - For SELL orders: use order_quantity (specify base currency amount)
+///
+/// * `client_order_id` - Custom unique ID for open orders
+///   - Must be unique among open orders
+///   - New orders with duplicate client_order_id are accepted only after previous one completes
+///
 /// # Fields
 ///
 /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
 /// * `order_type` - The type of order to create
 /// * `side` - Whether to buy or sell
 /// * `order_price` - The price for limit orders (optional for market orders)
-/// * `order_quantity` - The quantity to buy/sell
-/// * `order_amount` - The total amount to spend (optional)
-/// * `client_order_id` - Optional client-specified order ID
+/// * `order_quantity` - The quantity to buy/sell in base currency (e.g., ETH in PERP_ETH_USDC)
+/// * `order_amount` - The total amount in quote currency (e.g., USDC in PERP_ETH_USDC)
+/// * `client_order_id` - Optional client-specified order ID (36 chars max, can include hyphens)
 /// * `visible_quantity` - Optional visible quantity for iceberg orders
+/// Reference: https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
 #[derive(Serialize, Debug, Clone)]
 pub struct CreateOrderRequest<'a> {
     pub symbol: &'a str,
@@ -101,7 +141,8 @@ pub struct CreateOrderRequest<'a> {
     pub side: Side,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_price: Option<f64>,
-    pub order_quantity: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_quantity: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_amount: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
