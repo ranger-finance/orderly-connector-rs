@@ -48,7 +48,7 @@ async fn test_create_get_cancel_order() {
         order_type: OrderType::Market,
         side: Side::Buy,
         order_price: None,    // Market orders don't need a price
-        order_quantity: 0.01, // Small test quantity
+        order_quantity: Some(0.01), // Small test quantity
         order_amount: None,
         client_order_id: None,
         visible_quantity: None,

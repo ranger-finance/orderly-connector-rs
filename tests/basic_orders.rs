@@ -57,7 +57,7 @@ async fn test_market_order_creation() {
                 order_type: OrderType::Market,
                 side: Side::Buy,
                 order_price: None,
-                order_quantity: 0.01,
+                order_quantity: Some(0.01),
                 order_amount: None,
                 client_order_id: None,
                 visible_quantity: None,
@@ -115,7 +115,7 @@ async fn test_limit_order_creation() {
                 order_type: OrderType::Limit,
                 side: Side::Sell,
                 order_price: Some(2000.0),
-                order_quantity: 0.01,
+                order_quantity: Some(0.01),
                 order_amount: None,
                 client_order_id: None,
                 visible_quantity: None,
@@ -314,7 +314,7 @@ async fn test_error_handling() {
                 order_type: OrderType::Market,
                 side: Side::Buy,
                 order_price: None,
-                order_quantity: 0.0, // Invalid quantity
+                order_quantity: Some(0.0), // Invalid quantity
                 order_amount: None,
                 client_order_id: None,
                 visible_quantity: None,

@@ -54,19 +54,14 @@ async fn place_market_order(
     creds: &Credentials<'_>,
     symbol: &str,
     side: Side,
-    quantity: f64,
+    amount: Option<f64>,
 ) -> Result<u64, OrderlyError> {
-    info!(
-        "Placing market {:?} order for {} {}",
-        side, quantity, symbol
-    );
-
     let order_req = CreateOrderRequest {
         symbol,
         order_type: OrderType::Market,
         side,
         order_price: None, // Market orders don't specify price
-        order_quantity: quantity,
+        order_quantity: Some(0.08),
         order_amount: None,
         client_order_id: None,
         visible_quantity: None,
@@ -112,7 +107,7 @@ async fn place_limit_order(
         order_type: OrderType::Limit,
         side,
         order_price: Some(price),
-        order_quantity: quantity,
+        order_quantity: Some(quantity),
         order_amount: None,
         client_order_id: None,
         visible_quantity: None,
@@ -225,15 +220,25 @@ async fn main() -> Result<(), OrderlyError> {
     let client = OrderlyService::new(is_testnet, None)
         .map_err(|e| OrderlyError::ValidationError(format!("Failed to create client: {}", e)))?;
 
-    let symbol = "PERP_ETH_USDC";
+    let symbol = "PERP_SOL_USDC";
     info!("Using symbol: {}", symbol);
 
     // Example 1: Place and monitor a market buy order
     info!("Example 1: Market Buy Order");
-    let market_order_id = place_market_order(&client, &creds, symbol, Side::Buy, 0.01).await?;
+    let collateral = 4.72;
+    let leverage = 3.0;
+    let amount = collateral * leverage;
+    let market_order_id =
+        place_market_order(&client, &creds, symbol, Side::Buy, Some(amount)).await?;
     let market_status = monitor_order(&client, &creds, market_order_id, 30).await?;
     info!("Market order final status: {}", market_status);
-
+    // Example 1.5: Monitor order status
+    let market_status = monitor_order(&client, &creds, market_order_id, 30).await?;
+    info!("Market order final status: {}", market_status);
+    if market_status == OrderStatus::Filled {
+        info!("Market order filled, cancelling");
+        // cancel_order(&client, &creds, market_order_id, symbol).await?;
+    }
     // Example 2: Place and cancel a limit order
     info!("Example 2: Limit Sell Order");
     // Place limit order 5% above current price

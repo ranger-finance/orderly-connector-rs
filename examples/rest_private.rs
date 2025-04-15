@@ -38,7 +38,7 @@ async fn main() {
         order_type: OrderType::Limit,
         side: Side::Buy,
         order_price: Some(1000.0), // Place below market to avoid immediate fill
-        order_quantity: 0.01,
+        order_quantity: Some(0.01),
         order_amount: None,
         client_order_id: None,
         visible_quantity: None,
