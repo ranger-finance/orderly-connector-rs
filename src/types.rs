@@ -170,7 +170,7 @@ pub struct GetAlgoOrdersParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub side: Option<String>,
+    pub side: Option<Side>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_type: Option<AlgoOrderType>,
     #[serde(skip_serializing_if = "Option::is_none")]
