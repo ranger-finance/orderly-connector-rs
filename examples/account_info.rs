@@ -33,22 +33,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Get account information
     println!("\nFetching account information...");
-    match client.get_account_info(&creds).await {
-        Ok(info) => {
-            println!("Account Information:");
-            println!("  Account ID: {}", info.data.account_id);
-            println!("  Email: {}", info.data.email);
-            println!("  Market Type: {:?}", info.data.market_type);
-            println!("  Leverage: {}", info.data.leverage);
-            println!("  Max Leverage: {}", info.data.max_leverage);
-            println!("  Free Collateral: {}", info.data.free_collateral);
-            println!("  Total Collateral: {}", info.data.total_collateral);
-            if let Some(total_pnl) = info.data.total_pnl {
-                println!("  Total PnL: {}", total_pnl);
-            }
-        }
-        Err(e) => eprintln!("Error fetching account info: {}", e),
-    }
+    let info = client.get_account_info(&creds).await;
+    println!("Account Information: {:#?}", info);
+    // match client.get_account_info(&creds).await {
+    //     Ok(info) => {
+    //         println!("Account Information:");
+    //         println!("  Account ID: {}", info.data.account_id);
+    //         println!("  Email: {}", info.data.email);
+    //         println!("  Market Type: {:?}", info.data.market_type);
+    //         println!("  Leverage: {}", info.data.leverage);
+    //         println!("  Max Leverage: {}", info.data.max_leverage);
+    //         println!("  Free Collateral: {}", info.data.free_collateral);
+    //         println!("  Total Collateral: {}", info.data.total_collateral);
+    //         if let Some(total_pnl) = info.data.total_pnl {
+    //             println!("  Total PnL: {}", total_pnl);
+    //         }
+    //     }
+    //     Err(e) => eprintln!("Error fetching account info: {}", e),
+    // }
 
     // Get holdings (balances)
     println!("\nFetching holdings...");

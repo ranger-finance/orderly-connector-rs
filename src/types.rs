@@ -364,19 +364,15 @@ pub type CancelOrderResponse = SuccessResponse<CancelOrderResponseData>;
 pub struct AccountInfo {
     pub account_id: String,
     pub email: String,
-    pub market_type: Option<String>, // SPOT or FUTURES
-    pub leverage: f64,
+    pub account_mode: String,
+    pub maintenance_cancel_orders: bool,
+    pub taker_fee_rate: f64,
+    pub maker_fee_rate: f64,
     pub max_leverage: f64,
-    pub maintenance_margin_ratio: f64,
-    pub imr_factor: Option<f64>,
-    pub max_notional: Option<f64>,
-    pub free_collateral: f64,
-    pub total_collateral: f64,
-    pub total_collateral_value: Option<f64>, // Added based on potential API responses
-    pub total_pnl: Option<f64>,              // Added based on potential API responses
-    pub imr_withdraw_safe: Option<f64>,      // Added based on potential API responses
-    pub mmr_withdraw_safe: Option<f64>,      // Added based on potential API responses
-                                             // ... other fields as per API documentation
+    pub futures_taker_fee_rate: f64,
+    pub futures_maker_fee_rate: f64,
+    pub imr_factor: std::collections::HashMap<String, f64>,
+    pub max_notional: std::collections::HashMap<String, i64>,
 }
 
 pub type GetAccountInfoResponse = SuccessResponse<AccountInfo>;
