@@ -19,7 +19,7 @@ const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 pub struct Credentials<'a> {
     /// The public API key provided by Orderly Network.
     pub orderly_key: &'a str,
-    /// The private API secret provided by Orderly Network, used for signing requests.
+    /// The private API key provided by Orderly Network, used for signing requests.
     pub orderly_secret: &'a str,
     /// The user's unique account identifier on Orderly Network.
     pub orderly_account_id: &'a str,

@@ -267,6 +267,7 @@ pub struct Order {
     pub client_order_id: Option<String>,
     pub symbol: String,
     pub side: Side,
+    #[serde(rename = "type")]
     pub order_type: OrderType,
     pub order_price: Option<f64>,
     pub order_quantity: Option<f64>,
