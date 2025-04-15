@@ -168,7 +168,7 @@ impl OrderlyService {
     /// Builds a signed reqwest::Request using provided credentials.
     async fn build_signed_request<T: Serialize>(
         &self,
-        creds: &Credentials<'_>, // Accept credentials
+        creds: &Credentials<'_>,
         method: Method,
         path: &str,
         body: Option<T>,
@@ -177,12 +177,11 @@ impl OrderlyService {
         let full_url = self.base_url.join(path)?;
 
         let body_str = match &body {
-            Some(b) => serde_json::to_string(b)?, // Propagates SerdeError
+            Some(b) => serde_json::to_string(b)?,
             None => String::new(),
         };
 
         let message_to_sign = format!("{}{}{}{}", timestamp, method.as_str(), path, body_str);
-        // Use credentials passed in
         let signature = auth::generate_signature(creds.orderly_secret, &message_to_sign)?;
 
         let mut headers = HeaderMap::new();
@@ -190,7 +189,6 @@ impl OrderlyService {
             HeaderName::from_static("orderly-timestamp"),
             HeaderValue::from(timestamp),
         );
-        // Use credentials passed in
         headers.insert(
             HeaderName::from_static("orderly-key"),
             HeaderValue::from_str(creds.orderly_key)?,
@@ -199,15 +197,18 @@ impl OrderlyService {
             HeaderName::from_static("orderly-signature"),
             HeaderValue::from_str(&signature)?,
         );
-        // Use credentials passed in
         headers.insert(
             HeaderName::from_static("orderly-account-id"),
             HeaderValue::from_str(creds.orderly_account_id)?,
         );
-        headers.insert(
-            reqwest::header::CONTENT_TYPE,
-            HeaderValue::from_static("application/json"),
-        );
+
+        // Only include content-type header if there's a body or if it's not a DELETE request
+        if method != Method::DELETE {
+            headers.insert(
+                reqwest::header::CONTENT_TYPE,
+                HeaderValue::from_static("application/json"),
+            );
+        }
 
         let mut request_builder = self.http_client.request(method, full_url).headers(headers);
 
@@ -215,7 +216,7 @@ impl OrderlyService {
             request_builder = request_builder.json(&b);
         }
 
-        Ok(request_builder.build()?) // Propagates reqwest::Error
+        Ok(request_builder.build()?)
     }
 
     /// Sends a request and handles the response, parsing success or error.

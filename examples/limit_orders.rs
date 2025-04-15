@@ -5,7 +5,7 @@ use orderly_connector_rs::{
 };
 use std::env;
 use tokio::time::{sleep, Duration};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// Sets up logging with a custom format
 fn setup_logging() {
@@ -211,40 +211,67 @@ async fn main() -> Result<(), OrderlyError> {
     info!("Using symbol: {}", symbol);
 
     // Step 1: Check current position
+    info!("Step 1: Checking current position for {}", symbol);
     let position_size = get_position(&client, &creds, symbol).await?;
+    info!("Current position size: {}", position_size);
 
     if position_size == 0.0 {
         // Step 2: Open a new long position with a limit order
-        info!("Opening new long position with limit order");
+        info!("Step 2: Opening new long position with limit order");
         let quantity = 0.1; // Small test quantity
         let entry_price = 100.0; // Set your desired entry price
+        info!(
+            "Attempting to open long position: quantity={}, price={}",
+            quantity, entry_price
+        );
 
         let order_id =
             place_limit_order(&client, &creds, symbol, Side::Buy, quantity, entry_price).await?;
+        info!("Limit buy order placed with ID: {}", order_id);
 
         // Monitor the order with a timeout
+        info!("Monitoring order {} for execution...", order_id);
         let status = monitor_order(&client, &creds, order_id, 30).await?;
+        info!("Order {} final status: {}", order_id, status);
 
-        if status != OrderStatus::Filled {
-            // Cancel the order if it's not filled
-            if status != OrderStatus::Cancelled {
-                cancel_order(&client, &creds, order_id, symbol).await?;
+        match status {
+            OrderStatus::Filled => {
+                info!("Order {} was filled, checking position...", order_id);
+                // Wait a moment and check the position
+                sleep(Duration::from_secs(2)).await;
+                let position_size = get_position(&client, &creds, symbol).await?;
+                info!("Updated position size after fill: {}", position_size);
             }
-            return Err(OrderlyError::ValidationError(
-                "Failed to open position".into(),
-            ));
+            OrderStatus::Cancelled | OrderStatus::Rejected => {
+                info!("Order {} was {} - aborting", order_id, status);
+                return Err(OrderlyError::ValidationError(
+                    format!("Failed to open position - order was {}", status).into(),
+                ));
+            }
+            _ => {
+                // For any other status (including timeout/expired), cancel the order and inform
+                info!(
+                    "Order {} not filled within timeout (status: {}), cancelling",
+                    order_id, status
+                );
+                match cancel_order(&client, &creds, order_id, symbol).await {
+                    Ok(_) => info!("Successfully cancelled unfilled order {}", order_id),
+                    Err(e) => error!("Failed to cancel order {}: {}", order_id, e),
+                }
+                return Err(OrderlyError::ValidationError(
+                    format!("Failed to open position - order {} timed out", order_id).into(),
+                ));
+            }
         }
-
-        // Wait a moment and check the position
-        sleep(Duration::from_secs(2)).await;
-        let position_size = get_position(&client, &creds, symbol).await?;
-        info!("Opened long position of size: {}", position_size);
     } else {
         info!("Found existing position of size: {}", position_size);
     }
 
     // Step 3: Place a limit order to close the position
-    info!("Placing limit order to close position");
+    info!(
+        "Step 3: Placing limit order to close position of size {}",
+        position_size
+    );
     let close_side = if position_size > 0.0 {
         Side::Sell
     } else {
@@ -252,6 +279,10 @@ async fn main() -> Result<(), OrderlyError> {
     };
     let close_quantity = position_size.abs();
     let close_price = if position_size > 0.0 { 65.0 } else { 55.0 }; // Set take-profit price
+    info!(
+        "Closing position with {:?} order: quantity={}, price={}",
+        close_side, close_quantity, close_price
+    );
 
     let close_order_id = place_limit_order(
         &client,
@@ -262,28 +293,64 @@ async fn main() -> Result<(), OrderlyError> {
         close_price,
     )
     .await?;
+    info!("Close order placed with ID: {}", close_order_id);
 
     // Monitor the closing order
+    info!("Monitoring close order {} for execution...", close_order_id);
     let close_status = monitor_order(&client, &creds, close_order_id, 30).await?;
+    info!(
+        "Close order {} final status: {}",
+        close_order_id, close_status
+    );
 
     match close_status {
         OrderStatus::Filled => {
-            info!("Position closed successfully with limit order");
+            info!(
+                "Close order {} was filled, verifying position closure...",
+                close_order_id
+            );
             // Verify position is closed
             sleep(Duration::from_secs(2)).await;
             let final_position = get_position(&client, &creds, symbol).await?;
-            info!("Final position size: {}", final_position);
+            info!(
+                "Final position size after close: {} (expected: 0.0)",
+                final_position
+            );
+            if final_position != 0.0 {
+                warn!(
+                    "Position not fully closed! Remaining size: {}",
+                    final_position
+                );
+            }
         }
         OrderStatus::Cancelled | OrderStatus::Rejected => {
-            info!("Close order was not filled, cancelling if needed");
+            info!(
+                "Close order {} was {}, attempting cancellation if needed",
+                close_order_id, close_status
+            );
             if close_status != OrderStatus::Cancelled {
-                cancel_order(&client, &creds, close_order_id, symbol).await?;
+                match cancel_order(&client, &creds, close_order_id, symbol).await {
+                    Ok(_) => info!("Successfully cancelled close order {}", close_order_id),
+                    Err(e) => error!("Failed to cancel close order {}: {}", close_order_id, e),
+                }
             }
         }
         _ => {
             // Order timed out, cancel it
-            cancel_order(&client, &creds, close_order_id, symbol).await?;
-            error!("Close order timed out");
+            info!(
+                "Close order {} timed out (status: {}), cancelling",
+                close_order_id, close_status
+            );
+            match cancel_order(&client, &creds, close_order_id, symbol).await {
+                Ok(_) => info!(
+                    "Successfully cancelled timed out close order {}",
+                    close_order_id
+                ),
+                Err(e) => error!(
+                    "Failed to cancel timed out close order {}: {}",
+                    close_order_id, e
+                ),
+            }
         }
     }
 
