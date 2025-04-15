@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for holding in holdings.data.holding {
                 println!("  {} Balance:", holding.token);
                 println!("    Total: {}", holding.holding);
-                println!("    Available: {}", holding.available_balance);
+                println!("    Available: {}", holding.holding - holding.frozen);
                 println!("    Frozen: {}", holding.frozen);
                 if let Some(pending_short) = holding.pending_short_qty {
                     println!("    Pending Short: {}", pending_short);

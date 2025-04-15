@@ -54,7 +54,7 @@ async fn place_market_order(
     creds: &Credentials<'_>,
     symbol: &str,
     side: Side,
-    amount: Option<f64>,
+    _amount: Option<f64>,
 ) -> Result<u64, OrderlyError> {
     let order_req = CreateOrderRequest {
         symbol,

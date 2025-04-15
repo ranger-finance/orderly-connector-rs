@@ -363,9 +363,11 @@ pub type CancelOrderResponse = SuccessResponse<CancelOrderResponseData>;
 #[derive(Deserialize, Debug, Clone)]
 pub struct AccountInfo {
     pub account_id: String,
-    pub email: String,
+    #[serde(default)]
+    pub email: Option<String>,
     pub account_mode: String,
-    pub maintenance_cancel_orders: bool,
+    #[serde(default)]
+    pub maintenance_cancel_orders: Option<bool>,
     pub taker_fee_rate: f64,
     pub maker_fee_rate: f64,
     pub max_leverage: f64,
@@ -385,10 +387,6 @@ pub struct Holding {
     pub holding: f64,                   // Total balance
     pub frozen: f64,                    // Amount locked in orders
     pub pending_short_qty: Option<f64>, // For futures?
-    pub pending_long_qty: Option<f64>,  // For futures?
-    pub available_balance: f64,         // holding - frozen
-    pub cost_position: Option<f64>,
-    pub mark_price: Option<f64>,
     pub updated_time: u64,
     // ... other fields like valuation, interest etc.
 }
@@ -410,15 +408,25 @@ pub struct Position {
     pub last_sum_unitary_funding: f64,
     pub pending_long_qty: f64,
     pub pending_short_qty: f64,
-    pub unrealized_pnl: f64, // Also called unrealised_pnl
+    pub unsettled_pnl: f64,
     pub mark_price: f64,
-    pub liquidation_price: Option<f64>, // Can be null if position_qty is 0
+    #[serde(default)]
+    pub liquidation_price: Option<f64>,
     pub average_open_price: f64,
     pub timestamp: u64,
-    pub fee_24_h: Option<f64>,       // Added
-    pub settlement_pnl: Option<f64>, // Added
-    pub est_liq_price: Option<f64>,  // Added, alternative name?
-                                     // ... other fields
+    pub fee_24_h: f64,
+    #[serde(default)]
+    pub settlement_pnl: Option<f64>,
+    pub est_liq_price: f64,
+    pub seq: u64,
+    pub imr: f64,
+    pub mmr: f64,
+    #[serde(rename = "IMR_withdraw_orders")]
+    pub imr_with_orders: f64,
+    #[serde(rename = "MMR_with_orders")]
+    pub mmr_with_orders: f64,
+    pub pnl_24_h: f64,
+    pub settle_price: f64,
 }
 
 #[derive(Deserialize, Debug, Clone)]

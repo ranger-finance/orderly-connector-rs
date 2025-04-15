@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for holding in holdings.data.holding {
                 println!("  Token: {}", holding.token);
                 println!("    Total: {}", holding.holding);
-                println!("    Free: {}", holding.available_balance);
+                println!("    Free: {}", holding.holding - holding.frozen);
                 println!("    Frozen: {}", holding.frozen);
                 if let Some(pending_short) = holding.pending_short_qty {
                     println!("    Pending Short: {}", pending_short);
@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("    Position Qty: {}", position.position_qty);
                 println!("    Cost Position: {}", position.cost_position);
                 println!("    Mark Price: {}", position.mark_price);
-                println!("    Unrealized PnL: {}", position.unrealized_pnl);
+                println!("    Unrealized PnL: {}", position.unsettled_pnl);
                 println!("    Average Open Price: {}", position.average_open_price);
                 println!("");
             }

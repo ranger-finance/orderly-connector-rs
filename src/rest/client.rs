@@ -839,7 +839,7 @@ impl OrderlyService {
     /// Get current account information for the specified user.
     /// GET /v1/client/info
     ///
-    /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-account-info
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/get-account-information#get-account-information
     pub async fn get_account_info(
         &self,
         creds: &Credentials<'_>, // Added credentials parameter
