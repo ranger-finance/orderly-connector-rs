@@ -188,6 +188,7 @@ async fn test_order_status_monitoring() {
                 "order_id": 12345,
                 "symbol": "PERP_ETH_USDC",
                 "side": "BUY",
+                "type": "MARKET",
                 "order_type": "MARKET",
                 "order_price": null,
                 "order_quantity": 0.01,
