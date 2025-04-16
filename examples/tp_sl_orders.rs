@@ -1,7 +1,9 @@
 use orderly_connector_rs::{
     error::OrderlyError,
     rest::{client::Credentials, OrderlyService},
-    types::{CreateOrderRequest, OrderStatus, OrderType, Side},
+    types::{
+        AlgoOrderType, CreateAlgoOrderRequest, CreateOrderRequest, OrderStatus, OrderType, Side,
+    },
 };
 use std::env;
 use tokio::time::{sleep, Duration};
@@ -47,39 +49,46 @@ fn load_credentials() -> Result<(Credentials<'static>, bool), OrderlyError> {
     Ok((creds, is_testnet))
 }
 
-/// Places a take profit limit order
+/// Places a take profit order using algorithmic orders
 async fn place_take_profit_order(
     client: &OrderlyService,
     creds: &Credentials<'_>,
     symbol: &str,
     quantity: f64,
-    price: f64,
-    side: Side,
-) -> Result<u64, OrderlyError> {
+    trigger_price: f64,
+    limit_price: Option<f64>,
+) -> Result<String, OrderlyError> {
     info!(
-        "Placing take profit {:?} order for {} {} at {}",
-        side, quantity, symbol, price
+        "Placing take profit order for {} {} at trigger price {}",
+        quantity, symbol, trigger_price
     );
 
-    let order_req = CreateOrderRequest {
-        symbol,
-        order_type: OrderType::Limit,
-        side,
-        order_price: Some(price),
-        order_quantity: Some(quantity),
-        order_amount: None,
-        client_order_id: Some("tp_order"),
-        visible_quantity: None,
+    let order_type = if limit_price.is_some() {
+        AlgoOrderType::TakeProfitLimit
+    } else {
+        AlgoOrderType::TakeProfitMarket
     };
 
-    match client.create_order(creds, order_req).await {
+    let order_req = CreateAlgoOrderRequest {
+        symbol: symbol.to_string(),
+        order_type,
+        side: Side::Sell,
+        quantity,
+        trigger_price,
+        limit_price,
+        trailing_delta: None,
+        client_order_id: Some("tp_order".to_string()),
+        reduce_only: Some(true),
+    };
+
+    match client.create_algo_order(creds, order_req).await {
         Ok(resp) => {
             if resp.success {
                 info!(
                     "Take profit order placed successfully: ID {}",
-                    resp.data.order_id
+                    resp.data.algo_order_id
                 );
-                Ok(resp.data.order_id)
+                Ok(resp.data.algo_order_id)
             } else {
                 Err(OrderlyError::ValidationError(
                     "Take profit order creation failed".into(),
@@ -93,39 +102,46 @@ async fn place_take_profit_order(
     }
 }
 
-/// Places a stop loss market order
+/// Places a stop loss order using algorithmic orders
 async fn place_stop_loss_order(
     client: &OrderlyService,
     creds: &Credentials<'_>,
     symbol: &str,
     quantity: f64,
     trigger_price: f64,
-    side: Side,
-) -> Result<u64, OrderlyError> {
+    limit_price: Option<f64>,
+) -> Result<String, OrderlyError> {
     info!(
-        "Placing stop loss {:?} order for {} {} at trigger price {}",
-        side, quantity, symbol, trigger_price
+        "Placing stop loss order for {} {} at trigger price {}",
+        quantity, symbol, trigger_price
     );
 
-    let order_req = CreateOrderRequest {
-        symbol,
-        order_type: OrderType::Market,
-        side,
-        order_price: None,
-        order_quantity: Some(quantity),
-        order_amount: None,
-        client_order_id: Some("sl_order"),
-        visible_quantity: None,
+    let order_type = if limit_price.is_some() {
+        AlgoOrderType::StopLimit
+    } else {
+        AlgoOrderType::StopMarket
     };
 
-    match client.create_order(creds, order_req).await {
+    let order_req = CreateAlgoOrderRequest {
+        symbol: symbol.to_string(),
+        order_type,
+        side: Side::Sell,
+        quantity,
+        trigger_price,
+        limit_price,
+        trailing_delta: None,
+        client_order_id: Some("sl_order".to_string()),
+        reduce_only: Some(true),
+    };
+
+    match client.create_algo_order(creds, order_req).await {
         Ok(resp) => {
             if resp.success {
                 info!(
                     "Stop loss order placed successfully: ID {}",
-                    resp.data.order_id
+                    resp.data.algo_order_id
                 );
-                Ok(resp.data.order_id)
+                Ok(resp.data.algo_order_id)
             } else {
                 Err(OrderlyError::ValidationError(
                     "Stop loss order creation failed".into(),
@@ -165,7 +181,7 @@ async fn get_position(
     }
 }
 
-/// Monitors order status until filled or cancelled
+/// Monitors regular order status until filled or cancelled
 async fn monitor_order(
     client: &OrderlyService,
     creds: &Credentials<'_>,
@@ -214,6 +230,70 @@ async fn monitor_order(
     Ok(OrderStatus::Expired)
 }
 
+/// Monitors algo order status until filled or cancelled
+async fn monitor_algo_order(
+    client: &OrderlyService,
+    creds: &Credentials<'_>,
+    symbol: &str,
+    algo_order_id: &str,
+    timeout_secs: u64,
+) -> Result<OrderStatus, OrderlyError> {
+    info!(
+        "Monitoring algo order {} for {} seconds",
+        algo_order_id, timeout_secs
+    );
+    let start = std::time::Instant::now();
+    let timeout = Duration::from_secs(timeout_secs);
+
+    loop {
+        if start.elapsed() > timeout {
+            error!("Order monitoring timed out after {} seconds", timeout_secs);
+            break;
+        }
+
+        let params = orderly_connector_rs::types::GetAlgoOrdersParams {
+            symbol: Some(symbol.to_string()),
+            status: None,
+            side: None,
+            order_type: None,
+            page: None,
+            size: None,
+        };
+
+        match client.get_algo_orders(creds, params).await {
+            Ok(resp) => {
+                if let Some(order) = resp
+                    .data
+                    .rows
+                    .iter()
+                    .find(|o| o.algo_order_id == algo_order_id)
+                {
+                    let status = order.status.clone();
+                    info!("Algo order {} status: {}", algo_order_id, status);
+
+                    match status {
+                        OrderStatus::Filled | OrderStatus::Cancelled | OrderStatus::Rejected => {
+                            return Ok(status)
+                        }
+                        _ => {}
+                    }
+                } else {
+                    error!("Algo order {} not found", algo_order_id);
+                    return Ok(OrderStatus::Cancelled);
+                }
+            }
+            Err(e) => {
+                error!("Error checking algo order status: {}", e);
+                return Err(e);
+            }
+        }
+
+        sleep(Duration::from_secs(2)).await;
+    }
+
+    Ok(OrderStatus::Expired)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), OrderlyError> {
     // Setup logging
@@ -235,7 +315,7 @@ async fn main() -> Result<(), OrderlyError> {
 
     if position_size == 0.0 {
         // Example values - adjust these based on your strategy
-        let entry_price = 110.0;
+        let entry_price = 127.0;
         let quantity = 0.1;
         let take_profit_price = entry_price * 1.05; // 5% profit target
         let stop_loss_price = entry_price * 0.95; // 5% loss limit
@@ -271,7 +351,7 @@ async fn main() -> Result<(), OrderlyError> {
                     symbol,
                     quantity,
                     take_profit_price,
-                    Side::Sell,
+                    Some(take_profit_price - 0.1), // Limit price slightly below trigger for better execution
                 )
                 .await?;
 
@@ -282,7 +362,7 @@ async fn main() -> Result<(), OrderlyError> {
                     symbol,
                     quantity,
                     stop_loss_price,
-                    Side::Sell,
+                    None, // Use market order for stop loss
                 )
                 .await?;
 
@@ -290,16 +370,30 @@ async fn main() -> Result<(), OrderlyError> {
 
                 // Monitor both orders
                 loop {
-                    let tp_status = monitor_order(&client, &creds, tp_order_id, 10).await?;
-                    let sl_status = monitor_order(&client, &creds, sl_order_id, 10).await?;
+                    let tp_status =
+                        monitor_algo_order(&client, &creds, symbol, &tp_order_id, 10).await?;
+                    let sl_status =
+                        monitor_algo_order(&client, &creds, symbol, &sl_order_id, 10).await?;
 
                     match (tp_status, sl_status) {
                         (OrderStatus::Filled, _) => {
                             info!("Take profit order filled!");
+                            // Cancel the stop loss order since take profit was hit
+                            if let Err(e) =
+                                client.cancel_algo_order(&creds, symbol, &sl_order_id).await
+                            {
+                                error!("Failed to cancel stop loss order: {}", e);
+                            }
                             break;
                         }
                         (_, OrderStatus::Filled) => {
                             info!("Stop loss triggered!");
+                            // Cancel the take profit order since stop loss was hit
+                            if let Err(e) =
+                                client.cancel_algo_order(&creds, symbol, &tp_order_id).await
+                            {
+                                error!("Failed to cancel take profit order: {}", e);
+                            }
                             break;
                         }
                         _ => {
