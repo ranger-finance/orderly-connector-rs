@@ -227,7 +227,7 @@ async fn main() -> Result<(), OrderlyError> {
     let client = OrderlyService::new(is_testnet, None)
         .map_err(|e| OrderlyError::ValidationError(format!("Failed to create client: {}", e)))?;
 
-    let symbol = "PERP_ETH_USDC";
+    let symbol = "PERP_SOL_USDC";
     info!("Using symbol: {}", symbol);
 
     // Step 1: Check current position
@@ -235,7 +235,7 @@ async fn main() -> Result<(), OrderlyError> {
 
     if position_size == 0.0 {
         // Example values - adjust these based on your strategy
-        let entry_price = 2000.0;
+        let entry_price = 110.0;
         let quantity = 0.1;
         let take_profit_price = entry_price * 1.05; // 5% profit target
         let stop_loss_price = entry_price * 0.95; // 5% loss limit
