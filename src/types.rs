@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use rust_decimal::Decimal; // Added for precise price/quantity representation
+use std::fmt; // Added for precise price/quantity representation
 
 // --- Enums ---
 
@@ -88,7 +87,7 @@ pub enum AlgoOrderType {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderlyTimeInForce {
     Gtc, // Good 'Til Canceled
-    // Add others if supported explicitly via a TIF field, e.g., Gtd (Good 'Til Date)
+         // Add others if supported explicitly via a TIF field, e.g., Gtd (Good 'Til Date)
 }
 
 // --- Request Structs ---
@@ -1247,10 +1246,8 @@ pub struct GetPositionsUnderLiquidationParams {
 /// Represents a single level in the order book (price and quantity).
 #[derive(Deserialize, Debug, Clone)]
 pub struct OrderbookLevel {
-    #[serde(with = "rust_decimal::serde::float")]
-    pub price: Decimal,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub quantity: Decimal,
+    pub price: f64,
+    pub quantity: f64,
 }
 
 /// Represents an order book update received via WebSocket.
@@ -1258,7 +1255,7 @@ pub struct OrderbookLevel {
 #[derive(Deserialize, Debug, Clone)]
 pub struct OrderbookUpdate {
     pub topic: String, // e.g., "orderbook:PERP_BTC_USDC"
-    pub ts: u64, // Timestamp of the update
+    pub ts: u64,       // Timestamp of the update
     pub data: OrderbookData,
 }
 
@@ -1273,37 +1270,37 @@ pub struct OrderbookData {
     pub checksum: Option<u32>, // Optional checksum for verification
     #[serde(rename = "lastUpdateId")]
     pub last_update_id: u64, // Identifier for the update sequence
-     // Add sequence numbers if provided by Orderly (e.g., seqNum, prevSeqNum)
-     // pub seq_num: Option<u64>,
-     // pub prev_seq_num: Option<u64>,
+                             // Add sequence numbers if provided by Orderly (e.g., seqNum, prevSeqNum)
+                             // pub seq_num: Option<u64>,
+                             // pub prev_seq_num: Option<u64>,
 }
 
 /// Represents ticker data received via WebSocket.
 #[derive(Deserialize, Debug, Clone)]
 pub struct Ticker {
-     pub topic: String, // e.g., "ticker:PERP_BTC_USDC"
-     pub ts: u64, // Timestamp
-     pub data: TickerData,
+    pub topic: String, // e.g., "ticker:PERP_BTC_USDC"
+    pub ts: u64,       // Timestamp
+    pub data: TickerData,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct TickerData {
-     pub symbol: String,
-     #[serde(rename = "open")]
-     pub open_price: Option<Decimal>,
-     #[serde(rename = "high")]
-     pub high_price: Option<Decimal>,
-     #[serde(rename = "low")]
-     pub low_price: Option<Decimal>,
-     #[serde(rename = "close")]
-     pub close_price: Decimal, // Last traded price
-     #[serde(rename = "volume")]
-     pub volume: Option<Decimal>, // 24h volume in base asset
-     #[serde(rename = "amount")]
-     pub amount: Option<Decimal>, // 24h volume in quote asset
-     #[serde(rename = "count")]
-     pub trade_count: Option<u64>, // Number of trades in 24h
-     // Add other relevant fields like mark_price, index_price, funding_rate if included
+    pub symbol: String,
+    #[serde(rename = "open")]
+    pub open_price: Option<f64>,
+    #[serde(rename = "high")]
+    pub high_price: Option<f64>,
+    #[serde(rename = "low")]
+    pub low_price: Option<f64>,
+    #[serde(rename = "close")]
+    pub close_price: f64, // Last traded price
+    #[serde(rename = "volume")]
+    pub volume: Option<f64>, // 24h volume in base asset
+    #[serde(rename = "amount")]
+    pub amount: Option<f64>, // 24h volume in quote asset
+    #[serde(rename = "count")]
+    pub trade_count: Option<u64>, // Number of trades in 24h
+                                  // Add other relevant fields like mark_price, index_price, funding_rate if included
 }
 
 /// Represents different types of parsed WebSocket messages from public streams.
@@ -1313,9 +1310,9 @@ pub enum WebSocketMessage {
     #[serde(rename_all = "camelCase")] // Assuming topic names like "orderbook:SYMBOL"
     Orderbook(OrderbookData), // Topic determines this variant
     #[serde(rename_all = "camelCase")]
-    Ticker(TickerData),       // Topic determines this variant
+    Ticker(TickerData), // Topic determines this variant
     #[serde(rename_all = "camelCase")]
-    Trade(TradeData),         // Existing TradeData reused if suitable for WS trades
+    Trade(TradeData), // Existing TradeData reused if suitable for WS trades
     #[serde(rename_all = "camelCase")]
     Liquidation(WebSocketLiquidationData), // Reuse existing Liquidation data struct
     #[serde(rename = "ping")] // Handle ping messages if they arrive as JSON
