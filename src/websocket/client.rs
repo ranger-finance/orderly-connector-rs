@@ -331,6 +331,7 @@ async fn connect_managed(
 ///     client.stop().await;
 /// }
 /// ```
+#[derive(Debug)]
 pub struct WebsocketPublicClient {
     // Shared sender to allow sending messages while connection task runs/reconnects
     shared_tx: SharedSender,
