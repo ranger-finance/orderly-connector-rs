@@ -68,14 +68,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a limit order
     let symbol = "PERP_SOL_USDC";
     let order_request = CreateOrderRequest {
-        symbol: symbol,
+        symbol: symbol.to_string(),
         order_type: OrderType::Limit,
         side: Side::Buy,
         order_quantity: Some(0.1),
         order_price: Some(100.0),
         order_amount: None,
         visible_quantity: None,
-        client_order_id: None,
+        client_order_id: Some("my_order_id".to_string()),
     };
 
     // Place the order

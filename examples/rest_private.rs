@@ -34,13 +34,13 @@ async fn main() {
     // --- Create Limit Buy Order ---
     println!("\nAttempting to create a limit buy order for {}...", symbol);
     let order_req = CreateOrderRequest {
-        symbol,
+        symbol: symbol.to_string(),
         order_type: OrderType::Limit,
         side: Side::Buy,
         order_price: Some(1000.0), // Place below market to avoid immediate fill
         order_quantity: Some(0.01),
         order_amount: None,
-        client_order_id: None,
+        client_order_id: Some("my_order_id".to_string()),
         visible_quantity: None,
     };
 
@@ -81,7 +81,7 @@ async fn main() {
     // --- Get Orders (Filtered by symbol) ---
     println!("\nFetching orders for {}...", symbol);
     let params = GetOrdersParams {
-        symbol: Some(symbol),
+        symbol: Some(symbol.to_string()),
         ..Default::default()
     };
     match client.get_orders(&creds, Some(params)).await {

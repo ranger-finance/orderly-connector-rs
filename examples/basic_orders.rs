@@ -57,7 +57,7 @@ async fn place_market_order(
     _amount: Option<f64>,
 ) -> Result<u64, OrderlyError> {
     let order_req = CreateOrderRequest {
-        symbol,
+        symbol: symbol.to_string(),
         order_type: OrderType::Market,
         side,
         order_price: None, // Market orders don't specify price
@@ -103,13 +103,13 @@ async fn place_limit_order(
     );
 
     let order_req = CreateOrderRequest {
-        symbol,
+        symbol: symbol.to_string(),
         order_type: OrderType::Limit,
         side,
         order_price: Some(price),
         order_quantity: Some(quantity),
         order_amount: None,
-        client_order_id: None,
+        client_order_id: Some("my_order_id".to_string()),
         visible_quantity: None,
     };
 
@@ -252,7 +252,7 @@ async fn main() -> Result<(), OrderlyError> {
     // Example 3: Get all open orders
     info!("Example 3: List Open Orders");
     let params = GetOrdersParams {
-        symbol: Some(symbol),
+        symbol: Some(symbol.to_string()),
         status: Some(OrderStatus::New),
         ..Default::default()
     };

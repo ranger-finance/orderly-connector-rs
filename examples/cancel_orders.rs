@@ -60,7 +60,7 @@ async fn get_pending_orders(
     );
 
     let params = GetOrdersParams {
-        symbol,
+        symbol: symbol.map(|s| s.to_string()),
         status: Some(OrderStatus::New), // Get only pending orders
         ..Default::default()
     };

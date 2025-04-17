@@ -775,7 +775,7 @@ impl OrderlyService {
     pub async fn create_order(
         &self,
         creds: &Credentials<'_>, // Added credentials parameter
-        order_req: CreateOrderRequest<'_>,
+        order_req: CreateOrderRequest,
     ) -> Result<CreateOrderResponse> {
         let request = self
             .build_signed_request(creds, Method::POST, "/v1/order", Some(order_req)) // Pass creds
@@ -822,8 +822,8 @@ impl OrderlyService {
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-orders
     pub async fn get_orders(
         &self,
-        creds: &Credentials<'_>, // Added credentials parameter
-        params: Option<GetOrdersParams<'_>>,
+        creds: &Credentials<'_>,
+        params: Option<GetOrdersParams>,
     ) -> Result<GetOrdersResponse> {
         let mut path = "/v1/orders".to_string();
         if let Some(p) = params {
@@ -912,8 +912,8 @@ impl OrderlyService {
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-asset-history
     pub async fn get_asset_history(
         &self,
-        creds: &Credentials<'_>, // Added credentials parameter
-        params: Option<GetAssetHistoryParams<'_>>,
+        creds: &Credentials<'_>,
+        params: Option<GetAssetHistoryParams>,
     ) -> Result<GetAssetHistoryResponse> {
         let mut path = "/v1/asset/history".to_string();
         if let Some(p) = params {
@@ -940,8 +940,8 @@ impl OrderlyService {
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-trades
     pub async fn get_trades(
         &self,
-        creds: &Credentials<'_>, // Added credentials parameter
-        params: Option<GetTradesParams<'_>>,
+        creds: &Credentials<'_>,
+        params: Option<GetTradesParams>,
     ) -> Result<GetTradesResponse> {
         let mut path = "/v1/trades".to_string();
         if let Some(p) = params {
@@ -1000,7 +1000,7 @@ impl OrderlyService {
     /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/request-withdrawal
     pub async fn request_withdrawal(
         &self,
-        creds: &Credentials<'_>, // Added credentials parameter
+        creds: &Credentials<'_>,
         withdraw_req: WithdrawRequest<'_>,
     ) -> Result<WithdrawResponse> {
         let request = self
@@ -1038,7 +1038,7 @@ impl OrderlyService {
     pub async fn get_liquidations(
         &self,
         creds: &Credentials<'_>, // Added credentials parameter
-        params: Option<GetLiquidationsParams<'_>>,
+        params: Option<GetLiquidationsParams>,
     ) -> Result<GetLiquidationsResponse> {
         let mut path = "/v1/liquidations".to_string();
         if let Some(p) = params {
@@ -1066,7 +1066,7 @@ impl OrderlyService {
     pub async fn get_settlement_history(
         &self,
         creds: &Credentials<'_>, // Added credentials parameter
-        params: Option<GetSettlementsParams<'_>>,
+        params: Option<GetSettlementsParams>,
     ) -> Result<GetSettlementsResponse> {
         let mut path = "/v1/settlements".to_string();
         if let Some(p) = params {

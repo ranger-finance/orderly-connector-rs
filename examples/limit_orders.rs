@@ -63,13 +63,13 @@ async fn place_limit_order(
     );
 
     let order_req = CreateOrderRequest {
-        symbol,
+        symbol: symbol.to_string(),
         order_type: OrderType::Limit,
         side,
         order_price: Some(price),
         order_quantity: Some(quantity),
         order_amount: None,
-        client_order_id: None,
+        client_order_id: Some("my_order_id".to_string()),
         visible_quantity: None,
     };
 

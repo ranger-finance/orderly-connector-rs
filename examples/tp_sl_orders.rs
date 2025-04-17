@@ -323,13 +323,13 @@ async fn main() -> Result<(), OrderlyError> {
         // Step 2: Place entry order (market order for immediate execution)
         info!("Opening new long position with market order");
         let entry_order = CreateOrderRequest {
-            symbol,
+            symbol: symbol.to_string(),
             order_type: OrderType::Market,
             side: Side::Buy,
             order_price: None,
             order_quantity: Some(quantity),
             order_amount: None,
-            client_order_id: Some("entry_long"),
+            client_order_id: Some("my_order_id".to_string()),
             visible_quantity: None,
         };
 

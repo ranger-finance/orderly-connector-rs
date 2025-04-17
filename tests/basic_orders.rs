@@ -53,7 +53,7 @@ async fn test_market_order_creation() {
         .create_order(
             &creds,
             orderly_connector_rs::types::CreateOrderRequest {
-                symbol: "PERP_ETH_USDC",
+                symbol: "PERP_ETH_USDC".to_string(),
                 order_type: OrderType::Market,
                 side: Side::Buy,
                 order_price: None,
@@ -111,7 +111,7 @@ async fn test_limit_order_creation() {
         .create_order(
             &creds,
             orderly_connector_rs::types::CreateOrderRequest {
-                symbol: "PERP_ETH_USDC",
+                symbol: "PERP_ETH_USDC".to_string(),
                 order_type: OrderType::Limit,
                 side: Side::Sell,
                 order_price: Some(2000.0),
@@ -311,7 +311,7 @@ async fn test_error_handling() {
         .create_order(
             &creds,
             orderly_connector_rs::types::CreateOrderRequest {
-                symbol: "INVALID_SYMBOL",
+                symbol: "INVALID_SYMBOL".to_string(),
                 order_type: OrderType::Market,
                 side: Side::Buy,
                 order_price: None,

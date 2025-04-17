@@ -145,8 +145,8 @@ pub enum OrderlyTimeInForce {
 /// * `visible_quantity` - Optional visible quantity for iceberg orders
 /// Reference: https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
 #[derive(Serialize, Debug, Clone)]
-pub struct CreateOrderRequest<'a> {
-    pub symbol: &'a str,
+pub struct CreateOrderRequest {
+    pub symbol: String,
     pub order_type: OrderType,
     pub side: Side,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -156,7 +156,7 @@ pub struct CreateOrderRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_amount: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub client_order_id: Option<&'a str>,
+    pub client_order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub visible_quantity: Option<f64>,
     // Add other optional fields like reduce_only, trigger_price etc. if needed
@@ -175,9 +175,9 @@ pub struct CreateOrderRequest<'a> {
 /// * `page` - Optional page number for pagination
 /// * `size` - Optional number of orders per page
 #[derive(Serialize, Debug, Clone, Default)]
-pub struct GetOrdersParams<'a> {
+pub struct GetOrdersParams {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub symbol: Option<&'a str>,
+    pub symbol: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub side: Option<Side>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -469,9 +469,9 @@ pub enum AssetHistoryType {
 }
 
 #[derive(Serialize, Debug, Clone, Default)]
-pub struct GetAssetHistoryParams<'a> {
+pub struct GetAssetHistoryParams {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub token: Option<&'a str>,
+    pub token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub side: Option<AssetHistoryType>, // Type of transaction
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -512,9 +512,9 @@ pub type GetAssetHistoryResponse = SuccessResponse<GetAssetHistoryResponseData>;
 // --- Trades ---
 
 #[derive(Serialize, Debug, Clone, Default)]
-pub struct GetTradesParams<'a> {
+pub struct GetTradesParams {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub symbol: Option<&'a str>,
+    pub symbol: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_t: Option<u64>, // Timestamp ms
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -615,9 +615,9 @@ pub type GetFeeRatesResponse = SuccessResponse<GetFeeRatesResponseData>;
 // --- Liquidations ---
 
 #[derive(Serialize, Debug, Clone, Default)]
-pub struct GetLiquidationsParams<'a> {
+pub struct GetLiquidationsParams {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub symbol: Option<&'a str>,
+    pub symbol: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_t: Option<u64>, // Timestamp ms
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -652,9 +652,9 @@ pub type GetLiquidationsResponse = SuccessResponse<GetLiquidationsResponseData>;
 // --- PnL Settlement ---
 
 #[derive(Serialize, Debug, Clone, Default)]
-pub struct GetSettlementsParams<'a> {
+pub struct GetSettlementsParams {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub symbol: Option<&'a str>,
+    pub symbol: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_t: Option<u64>, // Timestamp ms
     #[serde(skip_serializing_if = "Option::is_none")]

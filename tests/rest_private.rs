@@ -44,13 +44,13 @@ async fn test_create_get_cancel_order() {
 
     // Create a market buy order
     let order_req = CreateOrderRequest {
-        symbol,
+        symbol: symbol.to_string(),
         order_type: OrderType::Market,
         side: Side::Buy,
         order_price: None,          // Market orders don't need a price
         order_quantity: Some(0.01), // Small test quantity
         order_amount: None,
-        client_order_id: None,
+        client_order_id: Some("my_order_id".to_string()),
         visible_quantity: None,
     };
 
@@ -77,7 +77,7 @@ async fn test_create_get_cancel_order() {
 
     // Get all orders for the symbol
     let params = GetOrdersParams {
-        symbol: Some(symbol),
+        symbol: Some(symbol.to_string()),
         ..Default::default()
     };
     match client.get_orders(&creds, Some(params)).await {
