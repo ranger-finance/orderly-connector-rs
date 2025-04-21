@@ -1304,21 +1304,68 @@ pub struct TickerData {
 }
 
 /// Represents different types of parsed WebSocket messages from public streams.
-#[derive(Deserialize, Debug, Clone)]
-#[serde(tag = "topic", content = "data")] // Use topic field to determine the variant
+#[derive(Debug, Clone)]
 pub enum WebSocketMessage {
-    #[serde(rename_all = "camelCase")] // Assuming topic names like "orderbook:SYMBOL"
-    Orderbook(OrderbookData), // Topic determines this variant
-    #[serde(rename_all = "camelCase")]
-    Ticker(TickerData), // Topic determines this variant
-    #[serde(rename_all = "camelCase")]
-    Trade(TradeData), // Existing TradeData reused if suitable for WS trades
-    #[serde(rename_all = "camelCase")]
-    Liquidation(WebSocketLiquidationData), // Reuse existing Liquidation data struct
-    #[serde(rename = "ping")] // Handle ping messages if they arrive as JSON
+    Orderbook(OrderbookData),
+    Ticker(TickerData),
+    Trade(TradeData),
+    Liquidation(WebSocketLiquidationData),
     Ping { ts: u64 },
-    // Add variants for other public stream types (IndexPrice, MarkPrice, Kline, etc.)
-    // Catch-all for subscription success/failure messages or unknown types
-    #[serde(other)]
     Other,
+}
+
+// Custom deserialization for WebSocketMessage
+impl<'de> serde::Deserialize<'de> for WebSocketMessage {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        use serde_json::Value;
+        let value = Value::deserialize(deserializer)?;
+
+        // Try to match on "event" for ping
+        if let Some(event) = value.get("event") {
+            if event == "ping" {
+                if let Some(ts) = value.get("ts").and_then(|v| v.as_u64()) {
+                    return Ok(WebSocketMessage::Ping { ts });
+                }
+            }
+        }
+
+        // Try to match on "topic"
+        if let Some(topic) = value.get("topic").and_then(|v| v.as_str()) {
+            match topic {
+                t if t.starts_with("orderbook:") => {
+                    let data: OrderbookUpdate =
+                        serde_json::from_value(value.clone()).map_err(D::Error::custom)?;
+                    Ok(WebSocketMessage::Orderbook(data.data))
+                }
+                t if t.starts_with("ticker:") => {
+                    let data: Ticker =
+                        serde_json::from_value(value.clone()).map_err(D::Error::custom)?;
+                    Ok(WebSocketMessage::Ticker(data.data))
+                }
+                t if t.starts_with("trade:") => {
+                    let data: WebSocketTradeData =
+                        serde_json::from_value(value.clone()).map_err(D::Error::custom)?;
+                    Ok(WebSocketMessage::Trade(data.data))
+                }
+                t if t.starts_with("liquidation") => {
+                    let data: WebSocketLiquidationMessage =
+                        serde_json::from_value(value.clone()).map_err(D::Error::custom)?;
+                    // Note: data.data is Vec<WebSocketLiquidationData>
+                    // We'll just take the first for now, or Other if empty
+                    if let Some(first) = data.data.into_iter().next() {
+                        Ok(WebSocketMessage::Liquidation(first))
+                    } else {
+                        Ok(WebSocketMessage::Other)
+                    }
+                }
+                _ => Ok(WebSocketMessage::Other),
+            }
+        } else {
+            Ok(WebSocketMessage::Other)
+        }
+    }
 }
