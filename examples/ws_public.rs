@@ -22,23 +22,15 @@ async fn main() {
     // Optional: Load .env file if you have one
     dotenv::dotenv().ok();
 
-    // Load configuration from environment variables
-    // Public WS needs account ID for the URL path
+    // Force mainnet WebSocket URL regardless of environment variables
     let account_id = env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
-    let is_testnet: bool = env::var("ORDERLY_TESTNET")
-        .unwrap_or("true".to_string())
-        .parse()
-        .expect("ORDERLY_TESTNET must be true or false");
+    let ws_url = format!("wss://ws-evm.orderly.org/ws/stream/{}", account_id);
 
-    println!(
-        "Connecting to Public WebSocket (Testnet: {})...",
-        is_testnet
-    );
+    println!("Connecting to Public WebSocket (Mainnet only) at {}...", ws_url);
 
     // Connect the client
-    let client = match WebsocketPublicClient::connect(
-        account_id,
-        is_testnet,
+    let client = match WebsocketPublicClient::connect_url(
+        ws_url,
         Arc::new(message_handler),
         Arc::new(close_handler),
     )

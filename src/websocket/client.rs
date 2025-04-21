@@ -12,8 +12,9 @@ use tokio::time::{sleep, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
 
-const MAINNET_WS_PUBLIC_URL: &str = "wss://ws.orderly.network/ws/stream";
-const TESTNET_WS_PUBLIC_URL: &str = "wss://testnet-ws.orderly.network/ws/stream";
+// EVM endpoints for Orderly public WebSocket
+const MAINNET_WS_PUBLIC_URL: &str = "wss://ws-evm.orderly.org/ws/stream";
+const TESTNET_WS_PUBLIC_URL: &str = "wss://testnet-ws-evm.orderly.org/ws/stream";
 const MAINNET_WS_PRIVATE_URL: &str = "wss://ws-private.orderly.network/v2/ws/private/stream";
 const TESTNET_WS_PRIVATE_URL: &str =
     "wss://testnet-ws-private.orderly.network/v2/ws/private/stream";
