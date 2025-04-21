@@ -1244,10 +1244,36 @@ pub struct GetPositionsUnderLiquidationParams {
 // --- WebSocket Message Structs ---
 
 /// Represents a single level in the order book (price and quantity).
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct OrderbookLevel {
     pub price: f64,
     pub quantity: f64,
+}
+
+impl<'de> Deserialize<'de> for OrderbookLevel {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Try array format first
+        if let Ok(arr) = <[f64; 2]>::deserialize(deserializer) {
+            return Ok(OrderbookLevel {
+                price: arr[0],
+                quantity: arr[1],
+            });
+        }
+        // Fallback to struct format
+        #[derive(Deserialize)]
+        struct Obj {
+            price: f64,
+            quantity: f64,
+        }
+        let obj = Obj::deserialize(deserializer)?;
+        Ok(OrderbookLevel {
+            price: obj.price,
+            quantity: obj.quantity,
+        })
+    }
 }
 
 /// Represents an order book update received via WebSocket.
@@ -1270,9 +1296,9 @@ pub struct OrderbookData {
     pub checksum: Option<u32>, // Optional checksum for verification
     #[serde(rename = "lastUpdateId")]
     pub last_update_id: u64, // Identifier for the update sequence
-                             // Add sequence numbers if provided by Orderly (e.g., seqNum, prevSeqNum)
-                             // pub seq_num: Option<u64>,
-                             // pub prev_seq_num: Option<u64>,
+    // Add prevTs as optional for @orderbookupdate
+    #[serde(rename = "prevTs")]
+    pub prev_ts: Option<u64>,
 }
 
 /// Represents ticker data received via WebSocket.
@@ -1314,7 +1340,6 @@ pub enum WebSocketMessage {
     Other,
 }
 
-// Custom deserialization for WebSocketMessage
 impl<'de> serde::Deserialize<'de> for WebSocketMessage {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1341,6 +1366,15 @@ impl<'de> serde::Deserialize<'de> for WebSocketMessage {
                         serde_json::from_value(value.clone()).map_err(D::Error::custom)?;
                     Ok(WebSocketMessage::Orderbook(data.data))
                 }
+                t if t.ends_with("@orderbookupdate") => {
+                    // Parse as OrderbookData directly from the data field
+                    let data = value
+                        .get("data")
+                        .ok_or_else(|| D::Error::custom("missing data field"))?;
+                    let ob: OrderbookData =
+                        serde_json::from_value(data.clone()).map_err(D::Error::custom)?;
+                    Ok(WebSocketMessage::Orderbook(ob))
+                }
                 t if t.starts_with("ticker:") => {
                     let data: Ticker =
                         serde_json::from_value(value.clone()).map_err(D::Error::custom)?;
@@ -1354,8 +1388,6 @@ impl<'de> serde::Deserialize<'de> for WebSocketMessage {
                 t if t.starts_with("liquidation") => {
                     let data: WebSocketLiquidationMessage =
                         serde_json::from_value(value.clone()).map_err(D::Error::custom)?;
-                    // Note: data.data is Vec<WebSocketLiquidationData>
-                    // We'll just take the first for now, or Other if empty
                     if let Some(first) = data.data.into_iter().next() {
                         Ok(WebSocketMessage::Liquidation(first))
                     } else {
