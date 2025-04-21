@@ -1316,17 +1316,21 @@ pub struct OrderbookUpdate {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct OrderbookData {
+    #[serde(default)]
     pub symbol: String,
     #[serde(default)]
     pub bids: Vec<OrderbookLevel>, // List of bid levels
     #[serde(default)]
     pub asks: Vec<OrderbookLevel>, // List of ask levels
     #[serde(rename = "checksum")]
+    #[serde(default)]
     pub checksum: Option<u32>, // Optional checksum for verification
     #[serde(rename = "lastUpdateId")]
-    pub last_update_id: u64, // Identifier for the update sequence
+    #[serde(default)]
+    pub last_update_id: Option<u64>, // Identifier for the update sequence
     // Add prevTs as optional for @orderbookupdate
     #[serde(rename = "prevTs")]
+    #[serde(default)]
     pub prev_ts: Option<u64>,
 }
 
