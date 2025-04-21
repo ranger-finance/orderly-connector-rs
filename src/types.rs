@@ -1,4 +1,5 @@
 use serde::de::Deserializer;
+use serde::de::{MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use std::fmt; // Added for precise price/quantity representation
 
@@ -1256,24 +1257,51 @@ impl<'de> Deserialize<'de> for OrderbookLevel {
     where
         D: Deserializer<'de>,
     {
-        // Try array format first
-        if let Ok(arr) = <[f64; 2]>::deserialize(deserializer) {
-            return Ok(OrderbookLevel {
-                price: arr[0],
-                quantity: arr[1],
-            });
+        struct OrderbookLevelVisitor;
+
+        impl<'de> Visitor<'de> for OrderbookLevelVisitor {
+            type Value = OrderbookLevel;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("an array [price, quantity] or a map {price, quantity}")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let price = seq
+                    .next_element::<f64>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let quantity = seq
+                    .next_element::<f64>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                Ok(OrderbookLevel { price, quantity })
+            }
+
+            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                let mut price = None;
+                let mut quantity = None;
+                while let Some(key) = map.next_key::<&str>()? {
+                    match key {
+                        "price" => price = Some(map.next_value()?),
+                        "quantity" => quantity = Some(map.next_value()?),
+                        _ => {
+                            let _: serde::de::IgnoredAny = map.next_value()?;
+                        }
+                    }
+                }
+                let price = price.ok_or_else(|| serde::de::Error::missing_field("price"))?;
+                let quantity =
+                    quantity.ok_or_else(|| serde::de::Error::missing_field("quantity"))?;
+                Ok(OrderbookLevel { price, quantity })
+            }
         }
-        // Fallback to struct format
-        #[derive(Deserialize)]
-        struct Obj {
-            price: f64,
-            quantity: f64,
-        }
-        let obj = Obj::deserialize(deserializer)?;
-        Ok(OrderbookLevel {
-            price: obj.price,
-            quantity: obj.quantity,
-        })
+
+        deserializer.deserialize_any(OrderbookLevelVisitor)
     }
 }
 
