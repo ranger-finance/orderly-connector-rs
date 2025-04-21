@@ -26,11 +26,15 @@ async fn main() {
     let account_id = env::var("ORDERLY_ACCOUNT_ID").expect("ORDERLY_ACCOUNT_ID not set");
     let ws_url = format!("wss://ws-evm.orderly.org/ws/stream/{}", account_id);
 
-    println!("Connecting to Public WebSocket (Mainnet only) at {}...", ws_url);
+    println!(
+        "Connecting to Public WebSocket (Mainnet only) at {}...",
+        ws_url
+    );
 
     // Connect the client
-    let client = match WebsocketPublicClient::connect_url(
-        ws_url,
+    let client = match WebsocketPublicClient::connect(
+        account_id,
+        false,
         Arc::new(message_handler),
         Arc::new(close_handler),
     )
