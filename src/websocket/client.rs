@@ -583,7 +583,7 @@ impl WebsocketPublicClient {
     /// # }
     /// ```
     pub async fn subscribe_orderbook(&self, symbol: &str) -> Result<()> {
-        let topic = format!("orderbook@{}", symbol);
+        let topic = format!("{}@orderbookupdate", symbol);
         let msg = json!({
             "id": format!("subscribe_orderbook_{}", symbol),
             "topic": topic,
@@ -620,7 +620,7 @@ impl WebsocketPublicClient {
     /// # }
     /// ```
     pub async fn unsubscribe_orderbook(&self, symbol: &str) -> Result<()> {
-        let topic = format!("orderbook@{}", symbol);
+        let topic = format!("{}@orderbookupdate", symbol);
         let msg = json!({
             "id": format!("unsubscribe_orderbook_{}", symbol),
             "topic": topic,
