@@ -11,6 +11,7 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use url::Url;
+use uuid;
 
 // EVM endpoints for Orderly public WebSocket
 const MAINNET_WS_PUBLIC_URL: &str = "wss://ws-evm.orderly.org/ws/stream";
@@ -820,6 +821,44 @@ impl WebsocketPublicClient {
         let topic = format!("{}@trade", symbol);
         let msg = json!({
             "id": format!("subscribe_trade_{}", symbol),
+            "topic": topic,
+            "event": "subscribe"
+        });
+        self.subscribe(msg).await
+    }
+
+    /// Subscribe to real-time 24h ticker updates for a specific trading pair (symbol).
+    ///
+    /// This sends a per-symbol ticker subscription message to the Orderly WebSocket API, matching the protocol:
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/websocket-api/public/24-hour-ticker
+    ///
+    /// # Arguments
+    /// * `symbol` - The trading symbol to subscribe to (e.g., "PERP_ETH_USDC").
+    ///
+    /// # Returns
+    /// Returns `Ok(())` if the subscription request was sent successfully, or an error if the request failed or the connection is closed.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// # use std::sync::Arc;
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// # let client = WebsocketPublicClient::connect(
+    /// #     "account_id".to_string(),
+    /// #     true,
+    /// #     Arc::new(|msg| println!("{}", msg)),
+    /// #     Arc::new(|| println!("Closed")),
+    /// # ).await.unwrap();
+    /// client.subscribe_ticker("PERP_ETH_USDC").await.expect("Failed to subscribe to ticker");
+    /// # }
+    /// ```
+    pub async fn subscribe_ticker(&self, symbol: &str) -> Result<()> {
+        use uuid::Uuid;
+        let client_id = Uuid::new_v4().to_string();
+        let topic = format!("{}@ticker", symbol);
+        let msg = serde_json::json!({
+            "id": client_id,
             "topic": topic,
             "event": "subscribe"
         });

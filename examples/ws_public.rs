@@ -54,6 +54,12 @@ async fn main() {
         eprintln!("Error subscribing to tickers: {}", e);
     }
 
+    // Example: Subscribe to 24h ticker for a single symbol (per-symbol subscription)
+    let ticker_symbol = "PERP_ETH_USDC";
+    if let Err(e) = client.subscribe_ticker(ticker_symbol).await {
+        eprintln!("Error subscribing to ticker for {}: {}", ticker_symbol, e);
+    }
+
     // Subscribe to orderbook for a symbol
     let symbol = "PERP_ETH_USDC";
     if let Err(e) = client.subscribe_orderbook(symbol).await {
