@@ -1,6 +1,6 @@
 [package]
 name = "orderly-connector-rs"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 description = "A Rust client library for interacting with the Orderly Network API"
 license = "MIT"
@@ -36,6 +36,7 @@ tokio-tungstenite = { version = "0.17", features = ["rustls-tls-native-roots"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version="1.6.1", features = ["v4"] }
 
 [dev-dependencies]
 dotenv = "0.15" # Added here for tests and examples
