@@ -1414,6 +1414,36 @@ impl OrderlyService {
         self.send_request::<SuccessResponse<GetAlgoOrdersResponse>>(request)
             .await
     }
+
+    /// Gets the orderbook snapshot for a symbol.
+    ///
+    /// # Arguments
+    ///
+    /// * `creds` - Credentials for authentication
+    /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
+    /// * `max_level` - Optional: the number of levels to show on both sides
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the orderbook snapshot response or an error.
+    ///
+    /// [Orderly API docs](https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/orderbook-snapshot)
+    pub async fn get_orderbook_snapshot(
+        &self,
+        creds: &Credentials<'_>,
+        symbol: &str,
+        max_level: Option<u32>,
+    ) -> Result<GetOrderbookSnapshotResponse> {
+        let mut path = format!("/v1/orderbook/{}", symbol);
+        if let Some(level) = max_level {
+            path.push_str(&format!("?max_level={}", level));
+        }
+        let request = self
+            .build_signed_request::<()>(creds, Method::GET, &path, None)
+            .await?;
+        self.send_request::<GetOrderbookSnapshotResponse>(request)
+            .await
+    }
 }
 
 // ===== Helper Structs (Restore these) =====

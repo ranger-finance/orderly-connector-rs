@@ -8,6 +8,7 @@ mod common;
 
 // Remove the unused import
 // use orderly_connector_rs::error::Result;
+use orderly_connector_rs::rest::client::Credentials;
 use orderly_connector_rs::rest::OrderlyService;
 use orderly_connector_rs::types::*; // This should import all types including the new ones
 
@@ -529,4 +530,45 @@ async fn test_get_market_trades() {
         first_trade.executed_timestamp > 0,
         "Trade timestamp should be positive"
     );
+}
+
+/// Tests the orderbook snapshot endpoint for a symbol.
+///
+/// This test verifies:
+/// - The API returns a valid orderbook snapshot for a symbol.
+/// - The asks and bids arrays are present.
+/// - Each level has price and quantity.
+///
+/// Note: This test is ignored by default as it requires network access and credentials.
+#[tokio::test]
+#[ignore]
+async fn test_get_orderbook_snapshot() {
+    common::setup();
+    let is_testnet = common::get_testnet_flag();
+    let api_key = common::get_env_var("ORDERLY_API_KEY");
+    let secret = common::get_env_var("ORDERLY_SECRET");
+    let account_id = common::get_env_var("ORDERLY_ACCOUNT_ID");
+    let creds = Credentials {
+        orderly_key: Box::leak(api_key.into_boxed_str()),
+        orderly_secret: Box::leak(secret.into_boxed_str()),
+        orderly_account_id: Box::leak(account_id.into_boxed_str()),
+    };
+    let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
+    let symbol = "PERP_ETH_USDC";
+    let result = client
+        .get_orderbook_snapshot(&creds, symbol, Some(20))
+        .await;
+    println!("Orderbook Snapshot Result: {:#?}", result);
+    assert!(result.is_ok());
+    let resp = result.unwrap();
+    assert!(resp.success);
+    assert!(!resp.data.asks.is_empty() || !resp.data.bids.is_empty());
+    for level in &resp.data.asks {
+        assert!(level.price > 0.0);
+        assert!(level.quantity >= 0.0);
+    }
+    for level in &resp.data.bids {
+        assert!(level.price > 0.0);
+        assert!(level.quantity >= 0.0);
+    }
 }

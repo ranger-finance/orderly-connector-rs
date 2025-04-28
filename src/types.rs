@@ -1434,3 +1434,14 @@ impl<'de> serde::Deserialize<'de> for WebSocketMessage {
         }
     }
 }
+
+/// Represents the REST orderbook snapshot response data.
+#[derive(Deserialize, Debug, Clone)]
+pub struct OrderbookSnapshotData {
+    pub asks: Vec<OrderbookLevel>,
+    pub bids: Vec<OrderbookLevel>,
+    pub timestamp: u64,
+}
+
+/// Type alias for the REST orderbook snapshot response.
+pub type GetOrderbookSnapshotResponse = SuccessResponse<OrderbookSnapshotData>;
