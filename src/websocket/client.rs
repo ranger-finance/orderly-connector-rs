@@ -865,6 +865,68 @@ impl WebsocketPublicClient {
         self.subscribe(msg).await
     }
 
+    /// Subscribes to index prices for all symbols.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure of the subscription.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// use std::sync::Arc;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let message_handler = Arc::new(|msg: String| {
+    ///         println!("Received: {}", msg);
+    ///     });
+    ///
+    ///     let close_handler = Arc::new(|| {
+    ///         println!("Connection closed");
+    ///     });
+    ///
+    ///     let client = WebsocketPublicClient::connect(
+    ///         "your_account_id".to_string(),
+    ///         true, // is_testnet
+    ///         message_handler,
+    ///         close_handler,
+    ///     ).await.expect("Failed to connect");
+    ///
+    ///     // Subscribe to index prices
+    ///     client.subscribe_index_prices().await.expect("Failed to subscribe");
+    ///
+    ///     // Keep the connection alive
+    ///     tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+    ///     client.stop().await;
+    /// }
+    /// ```
+    pub async fn subscribe_index_prices(&self) -> Result<()> {
+        let topic_msg = json!({
+            "id": uuid::Uuid::new_v4().to_string(),
+            "event": "subscribe",
+            "topic": "indexprices"
+        });
+
+        self.subscribe(topic_msg).await
+    }
+
+    /// Unsubscribes from index prices.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure of the unsubscription.
+    pub async fn unsubscribe_index_prices(&self) -> Result<()> {
+        let topic_msg = json!({
+            "id": uuid::Uuid::new_v4().to_string(),
+            "event": "unsubscribe",
+            "topic": "indexprices"
+        });
+
+        self.unsubscribe(topic_msg).await
+    }
+
     // --- Stop Method ---
     pub async fn stop(&self) {
         info!("Stopping WebSocket client...");
