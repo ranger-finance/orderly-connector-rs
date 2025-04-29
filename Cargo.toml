@@ -47,6 +47,14 @@ solana-client = "=1.16.13"
 solana-address-lookup-table-program = "=1.16.13"
 solana-sdk = "=1.16.13"
 
+##########
+# Anchor #
+##########
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+anchor-gen = "=0.3.1"
+
+
 [dev-dependencies]
 dotenv = "0.15" # Added here for tests and examples
 env_logger = "0.11" # For initializing logger in examples/tests

@@ -1,30 +1,18 @@
-use solana_program::declare_id;
+use anchor_lang::declare_id;
 use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 
-// Define Program ID constants (Verified from JS helper.ts)
-pub mod program_ids {
-    use super::*;
-    declare_id!("ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q");
-    pub const VAULT_PROGRAM_ID: Pubkey = Pubkey::new_from_array(*id().as_ref());
-
-    declare_id!("LzV2EndpointV211111111111111111111111111111");
-    pub const ENDPOINT_PROGRAM_ID: Pubkey = Pubkey::new_from_array(*id().as_ref());
-
-    declare_id!("LzV2SendLib11111111111111111111111111111111");
-    pub const SEND_LIB_PROGRAM_ID: Pubkey = Pubkey::new_from_array(*id().as_ref());
-
-    declare_id!("LzV2Treasury1111111111111111111111111111111");
-    pub const TREASURY_PROGRAM_ID: Pubkey = Pubkey::new_from_array(*id().as_ref());
-
-    declare_id!("LzV2Executor1111111111111111111111111111111");
-    pub const EXECUTOR_PROGRAM_ID: Pubkey = Pubkey::new_from_array(*id().as_ref());
-
-    declare_id!("LzV2PriceFeed111111111111111111111111111111");
-    pub const PRICE_FEED_PROGRAM_ID: Pubkey = Pubkey::new_from_array(*id().as_ref());
-
-    declare_id!("LzV2DVN111111111111111111111111111111111111");
-    pub const DVN_PROGRAM_ID: Pubkey = Pubkey::new_from_array(*id().as_ref());
+pub fn get_program_id(name: &str) -> Option<Pubkey> {
+    match name {
+        "VAULT" => Pubkey::from_str("ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q").ok(),
+        "ENDPOINT" => Pubkey::from_str("LzV2EndpointV211111111111111111111111111111").ok(),
+        "SEND_LIB" => Pubkey::from_str("LzV2SendLib11111111111111111111111111111111").ok(),
+        "TREASURY" => Pubkey::from_str("LzV2Treasury1111111111111111111111111111111").ok(),
+        "EXECUTOR" => Pubkey::from_str("LzV2Executor1111111111111111111111111111111").ok(),
+        "PRICE_FEED" => Pubkey::from_str("LzV2PriceFeed111111111111111111111111111111").ok(),
+        "DVN" => Pubkey::from_str("LzV2DVN111111111111111111111111111111111111").ok(),
+        _ => None,
+    }
 }
 
 #[derive(Clone, Debug)]
