@@ -142,6 +142,14 @@ The REST client provides methods for interacting with the Orderly Network API:
 - `get_orders(params: GetOrdersParams)`: Get order history
 - `cancel_order(symbol: String, order_id: Option<String>, client_order_id: Option<String>)`: Cancel an order
 
+### Solana Integration
+
+The SDK includes preliminary support for interacting with Orderly Network's Solana Vault program.
+
+- **Solana Vault Program ID:** `ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q`
+
+Functionality to prepare Solana transactions (like deposits) for signing is under development. See the implementation plan for details.
+
 ### WebSocket Client
 
 The WebSocket client provides real-time data streaming:

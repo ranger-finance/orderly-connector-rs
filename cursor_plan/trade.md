@@ -1,318 +1,186 @@
-# Orderly Connector Implementation Plan
-
-## Overview
-
-This document outlines the implementation plan for integrating Orderly Network into the Smart Order Router (SOR) service. The implementation will use the `orderly-connector-rs` SDK, with additional extensions to support advanced order types and WebSocket integration.
-
-## Project Goals
-
-1. Implement missing features in `orderly-connector-rs` (algo orders)
-2. Create a fully-featured `OrderlyVenue` implementation for SOR
-3. Support real-time market data and order updates via WebSockets
-4. Provide robust error handling and retry mechanisms
-5. Implement comprehensive testing and performance optimization
-
-## Implementation Phases
-
-### Phase 1: SDK Enhancement (Week 1)
-
-#### Day 1-2: Environment Setup and SDK Analysis
-
-- [x] Fork `orderly-connector-rs` repository
-- [x] Analyze missing endpoints (`create_algo_order`, `cancel_algo_order`, etc.)
-- [x] Create database schema for credential management
-- [x] Set up development environment with proper dependencies
-
-#### Day 3-4: Implement Missing Endpoints
-
-- [x] Add `AlgoOrderType` and related types
-- [x] Implement `create_algo_order` endpoint
-- [x] Implement `cancel_algo_order` endpoint
-- [x] Implement `get_algo_orders` endpoint
-- [x] Add proper error handling for algo orders
-
-#### Day 5: Tests and Documentation
-
-- [x] Write unit tests for new endpoints
-- [x] Document the new APIs with examples
-- [ ] Submit PR to upstream `orderly-connector-rs` repository
-- [x] Set up fork as temporary dependency for SOR
-
-### Phase 2: SOR Integration (Week 2)
-
-#### Day 1-2: Core Implementation
-
-- [x] Implement `OrderlyVenue` struct with configuration
-- [x] Implement credential management functions
-- [x] Create type conversion utilities (SOR ↔ Orderly SDK)
-- [x] Implement `check_readiness` and `get_balance` methods
-
-#### Day 3-4: Order Management
-
-- [x] Implement `place_order` with pre-trade validation
-- [x] Implement order status retrieval methods
-- [x] Implement query capabilities with filtering
-- [x] Add order cancellation functionality
-
-#### Day 5: Trade History and Market Data
-
-- [x] Implement `get_trades` and related methods
-- [x] Implement market data retrieval (orderbook, ticker)
-- [x] Add caching for frequently accessed data
-- [x] Implement proper logging infrastructure
-
-### Phase 3: Advanced Features (Week 3)
-
-#### Day 1-2: Algo Order Implementation
-
-- [x] Implement `place_algo_order` with validation
-- [x] Implement methods to query and manage algo orders
-- [x] Add conversion between SOR and Orderly algo order types
-- [x] Implement specific handling for stop-loss and take-profit orders
-
-#### Day 3-4: WebSocket Integration
-
-- [x] Implement public market data streaming
-- [x] Implement private user data streaming
-- [x] Add real-time order and position tracking
-- [x] Implement reconnection logic and error recovery
-
-#### Day 5: Error Handling and Optimization
-
-- [x] Implement retry mechanism for transient errors
-- [x] Add detailed error mapping and context
-- [x] Optimize performance with connection reuse
-- [x] Add metrics for monitoring
-
-### Phase 4: Testing and Documentation (Week 4)
-
-#### Day 1-2: Unit and Integration Testing
-
-- [x] Write comprehensive unit tests for all methods
-- [x] Create integration tests with mock API responses
-- [x] Test error handling and edge cases
-- [x] Test WebSocket reconnection logic
-
-#### Day 3-4: Performance Testing
-
-- [x] Conduct load testing with concurrent orders
-- [x] Optimize memory usage and connection management
-- [x] Tune caching strategies and retry parameters
-- [x] Benchmark API call latency
-
-#### Day 5: Documentation and Finalization
-
-- [x] Update API documentation with examples
-- [x] Finalize configuration and deployment scripts
-- [x] Create operation runbook
-- [x] Conduct final review and release
-
-## Dependencies
-
-```toml
-[dependencies]
-# Orderly SDK (fork until PR is accepted)
-orderly-connector-rs = { git = "https://github.com/ranger-finance/orderly-connector-rs", branch = "feature/algo-orders" }
-
-# Async runtime
-tokio = { version = "1.0", features = ["full", "time"] }
-
-# Error handling
-anyhow = "1.0"
-thiserror = "1.0"
-
-# Async traits
-async-trait = "0.1"
-
-# Database
-sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-native-tls", "chrono", "json", "decimal"] }
-
-# Decimal handling
-rust_decimal = "1.30"
-rust_decimal_macros = "1.30"
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# Testing
-mockito = "1.2"
-tokio-test = "0.4"
-```
-
-## Examples and Tests Plan
-
-### Examples (Week 5)
-
-#### Day 1-2: Basic Order Examples
-
-- [x] Create comprehensive example for basic order operations:
-  - Market order placement
-  - Limit order placement
-  - Order cancellation
-  - Order modification
-  - Bulk order operations
-- [x] Add proper error handling and logging
-- [x] Include configuration management
-- [x] Add comments explaining each operation
-
-#### Day 3-4: Advanced Order Examples
-
-- [x] Create examples for algorithmic orders:
-  - Stop-loss orders
-  - Take-profit orders
-  - Trailing stop orders
-  - OCO (One-Cancels-Other) orders
-- [x] Add position management examples
-- [x] Include risk management examples
-- [x] Add examples with different order parameters
-
-#### Day 5: WebSocket Examples
-
-- [x] Create WebSocket order tracking example:
-  - Real-time order updates
-  - Execution reports
-  - Position updates
-  - Balance updates
-- [x] Add reconnection handling
-- [x] Include proper cleanup
-
-### Tests (Week 6)
-
-#### Day 1-2: Unit Tests
-
-- [x] Add unit tests for order validation:
-  - Parameter validation
-  - Price/quantity limits
-  - Symbol validation
-  - Order type validation
-- [x] Add tests for error handling:
-  - Network errors
-  - API errors
-  - Validation errors
-- [x] Add tests for order state transitions
-
-#### Day 3-4: Integration Tests
-
-- [x] Add integration tests for order lifecycle:
-  - Order creation to execution
-  - Order creation to cancellation
-  - Order modification flows
-  - Bulk order operations
-- [x] Add tests for algorithmic orders:
-  - Trigger conditions
-  - Execution behavior
-  - Cancellation behavior
-- [x] Add WebSocket integration tests:
-  - Connection management
-  - Message handling
-  - State synchronization
-
-#### Day 5: Performance and Edge Case Tests
-
-- [x] Add performance tests:
-  - Concurrent order operations
-  - High frequency updates
-  - Connection stress tests
-- [x] Add edge case tests:
-  - Invalid inputs
-  - Boundary conditions
-  - Error scenarios
-- [x] Add cleanup and test utilities
-
-### Test Coverage Goals
-
-1. Core Order Operations: 95%
-2. Algorithmic Orders: 90%
-3. WebSocket Integration: 85%
-4. Error Handling: 95%
-5. Edge Cases: 80%
-
-### Example Categories
-
-1. Basic Operations
-
-   - Simple market/limit orders
-   - Order cancellation
-   - Order status checking
-   - Order history retrieval
-
-2. Advanced Operations
-
-   - Algorithmic orders
-   - Position management
-   - Risk management
-   - Order book monitoring
-
-3. WebSocket Integration
-
-   - Real-time order tracking
-   - Market data streaming
-   - Position/balance updates
-   - Connection management
-
-4. Error Handling
-   - Network issues
-   - API errors
-   - Validation failures
-   - Recovery strategies
-
-### Documentation Requirements
-
-1. Each example should include:
-
-   - Purpose and use case
-   - Prerequisites
-   - Step-by-step explanation
-   - Expected output
-   - Error handling
-   - Best practices
-
-2. Each test should include:
-   - Test scenario description
-   - Test data setup
-   - Expected results
-   - Cleanup procedures
-   - Performance considerations
-
-## Implementation Details
-
-### AlgoOrderType Implementation
-
-Algo orders in Orderly include:
-
-- `StopMarket`: Execute market order when price reaches trigger
-- `StopLimit`: Place limit order when price reaches trigger
-- `TakeProfitMarket`: Market order at profit target
-- `TakeProfitLimit`: Limit order at profit target
-- `TrailingStop`: Moving stop-loss that follows price movements
-
-### WebSocket Integration
-
-The WebSocket integration will:
-
-1. Subscribe to public market data for all supported symbols
-2. Create user-specific private WebSocket connections on demand
-3. Process updates in dedicated async tasks
-4. Maintain cache of latest market data
-5. Implement automatic reconnection with backoff
-
-### Error Handling Strategy
-
-1. Map Orderly API error codes to meaningful messages
-2. Implement retry for transient errors (network, timeout, rate limit)
-3. Log detailed error information including stack traces
-4. Provide context-specific error messages to clients
-
-## Success Criteria
-
-1. All Orderly API endpoints properly integrated into SOR
-2. Algo orders working correctly with proper validation
-3. Real-time updates via WebSockets with reconnection
-4. Comprehensive test coverage (>90%)
-5. Documented API with examples
-6. Performance benchmarks meeting latency targets (<100ms median)
+# Solana Deposit, Withdrawal, and Key Registration Implementation Plan
+
+This document outlines the steps to implement Solana deposit, withdrawal, and key registration functionality within the `orderly-connector-rs` SDK.
+
+## 1. Project Setup & Dependencies
+
+- **Dependencies (`Cargo.toml`):**
+  - Ensure the following crates are added:
+
+````toml
+    solana-sdk = "..."
+    solana-client = { version = "...", features = ["nonblocking"] }
+    solana-program = "..."
+    spl-token = "..."
+    spl-associated-token-account = "..."
+    anchor-client = "..."
+    anchor-lang = "..." # Optional, for direct IDL struct use
+    bs58 = "..."
+    base64 = "..."
+    serde = { version = "...", features = ["derive"] }
+    serde_json = "..."
+    reqwest = { version = "...", features = ["json"] }
+    tokio = { version = "...", features = ["full"] }
+    sha3 = "..." # For Keccak256
+    hex = "..."
+    anyhow = "..." # Or define custom Error enum
+    thiserror = "..." # If using custom Error enum
+    bincode = "..." # For transaction serialization
+    ```
+- **Configuration:**
+  - Define a `SolanaConfig` struct or similar to hold:
+    - `rpc_url: String`
+    - `api_base_url: String`
+    - `vault_program_id: Pubkey` **(Verified: `ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q`)**
+    - `usdc_mint: Pubkey`
+    - `broker_id: String`
+    - Relevant LayerZero/Endpoint Program IDs (`ENDPOINT_PROGRAM_ID`, etc.) **(Needs Verification)**
+- **Error Handling:**
+  - Define a custom `Error` enum using `thiserror` or use `anyhow::Error` for simplicity. Propagate errors using `Result<T, Error>`.
+
+## 2. Core Solana Utilities
+
+- **Hashing:**
+  - Implement `fn hash_broker_id(broker_id: &str) -> [u8; 32]` using `sha3::Keccak256`.
+  - Implement `fn hash_token_id(token_id: &str) -> [u8; 32]` using `sha3::Keccak256`.
+- **PDA Derivation:**
+  - Create a module (e.g., `solana_pdas.rs`) with functions for deriving addresses:
+    - `find_vault_authority_pda(vault_program_id: &Pubkey) -> Pubkey` **(Seeds Need Verification)**
+    - `find_user_token_account(user_wallet: &Pubkey, mint: &Pubkey) -> Pubkey` (using `spl_associated_token_account::get_associated_token_address`)
+    - `find_vault_token_account(vault_authority_pda: &Pubkey, mint: &Pubkey) -> Pubkey` (using `spl_associated_token_account::get_associated_token_address`)
+    - `find_allowed_broker_pda(vault_program_id: &Pubkey, broker_hash: &[u8; 32]) -> Pubkey` **(Seeds Need Verification)**
+    - `find_allowed_token_pda(vault_program_id: &Pubkey, token_hash: &[u8; 32]) -> Pubkey` **(Seeds Need Verification)**
+    - Functions for all LayerZero/Endpoint PDAs (`oappConfigPDA`, `peerPDA`, `endorcedOptionsPDA`, `sendLibPDA`, `noncePDA`, etc.) based on JS code. **(Seeds Need Verification)**
+  - **Note:** Document clearly that the seeds used initially are based on JS code interpretation and require verification against the `solana-vault` Rust source.
+
+## 3. API Client Enhancements
+
+- In the existing API client module:
+  - Add `async fn get_withdrawal_nonce(&self) -> Result<u64, Error>`
+    - Perform a `GET` request to `{api_base_url}/v1/withdraw_nonce`.
+    - Parse the JSON response to extract the nonce.
+    - Handle potential API errors.
+
+## 4. Solana Deposit Implementation (`prepare_solana_deposit_tx`)
+
+- **Function Signature:**
+  ```rust
+  async fn prepare_solana_deposit_tx(
+      rpc_client: &solana_client::nonblocking::rpc_client::RpcClient,
+      anchor_program_client: // Type depends on anchor_client setup, e.g., &anchor_client::Program
+      user_wallet: Pubkey,
+      amount_lamports: u64, // Amount in lamports (USDC has 6 decimals usually)
+      config: &SolanaConfig,
+  ) -> Result<String, Error> // Base64 encoded VersionedTransaction string
+````
+
+- **Argument Structs (Mirroring IDL):** **(IDL Found)**
+  - Define `DepositParams { account_id: [u8; 32], broker_hash: [u8; 32], token_hash: [u8; 32], user_address: [u8; 32], token_amount: u64 }` (Based on IDL - Verify exact types/sizes, e.g., `u64` vs `u128` if needed).
+  - Define `OAppSendParams { native_fee: u64, lz_token_fee: u64 }` (Based on IDL).
+- **PDA Derivation:**
+  - Call the helper functions from Step 2 to get all required PDA `Pubkey`s. Use hashed `broker_id` and `token_id` ("USDC").
+- **Fetch Deposit Fee (`get_deposit_quote_fee` Logic):** **(IDL Found - Instruction: `oappQuote`)**
+  - Use the `anchor_program_client` to make a view call to the `oappQuote` instruction.
+  - Construct the `DepositParams` argument required by `oappQuote`.
+  - Parse the result (IDL defines `MessagingFee { native_fee: u64, lz_token_fee: u64 }`) to get the `native_fee`.
+- **Build Instruction:** **(IDL Found & Seed Verification Needed)**
+  - Instantiate the `DepositParams` and `OAppSendParams` structs for the `deposit` instruction.
+  - Use `anchor_client`'s request builder:
+    ```rust
+    let instruction = anchor_program_client
+        .request()
+        // Accounts based on IDL 'deposit' instruction:
+        .accounts(solana_vault::accounts::DepositAccounts { // Example struct name
+            user: user_wallet,
+            user_token_account: user_usdc_ata_pda,
+            vault_authority: vault_authority_pda,
+            vault_token_account: vault_usdc_ata_pda,
+            deposit_token: config.usdc_mint, // Check if this is the correct account name in IDL
+            peer: peer_pda, // Derived
+            enforced_options: enforced_options_pda, // Derived
+            oapp_config: oapp_config_pda, // Derived
+            allowed_broker: allowed_broker_pda, // Derived
+            allowed_token: allowed_token_pda, // Derived
+            token_program: spl_token::ID,
+            associated_token_program: spl_associated_token_account::ID,
+            system_program: system_program::ID,
+        })
+        .args(solana_vault::instruction::Deposit { // Example struct name
+             deposit_params: deposit_params_instance,
+             oapp_params: oapp_send_params_instance,
+        })
+        .remaining_accounts(...) // Add all remaining accounts for LZ/Endpoint calls in the EXACT order from JS/IDL **(Needs careful verification)**
+        .instructions()?;
+    ```
+  - Ensure account pubkeys and `remaining_accounts` match the JS example and underlying program logic precisely.
+- **Build Transaction:**
+  - Create `ComputeBudgetInstruction::set_compute_unit_limit(400_000)`.
+  - Derive the Address Lookup Table (ALT) address using the logic from `getLookupTableAddress(appProgramId)` in JS. **(Needs Verification)**
+  - Fetch the `lookup_table_account` using `rpc_client.get_account(&alt_address).await?`. Deserialize it into `AddressLookupTableAccount`.
+  - Fetch `latest_blockhash = rpc_client.get_latest_blockhash().await?`.
+  - Create `message = solana_sdk::message::v0::Message::try_compile(&user_wallet, &[deposit_instruction, compute_budget_instruction], &[lookup_table_account], latest_blockhash)?`.
+  - Create `tx = solana_sdk::transaction::VersionedTransaction::try_new(message, &[] /* signers */)?`.
+- **Serialize & Encode:**
+  - `serialized_tx = bincode::serialize(&tx)?` or use `tx.serialize()?`.
+  - `base64_encoded = base64::engine::general_purpose::STANDARD.encode(&serialized_tx)`
+- **Return:** `Ok(base64_encoded)`
+
+## 5. Off-Chain Message Preparation (Withdrawal & Key Reg)
+
+- **Serializable Structs:**
+  - Define `WithdrawMessage { domain: Eip712Domain, types: Eip712Types, primary_type: String, message: WithdrawMessageData }` (or similar structure suitable for frontend EIP-712 signing).
+  - Define `WithdrawMessageData { brokerId: String, chainId: u64, receiver: String, token: String, amount: String, withdrawNonce: u64, timestamp: u64 }`. Use `String` for receiver address and amount for easy JSON serialization.
+  - Define `RegisterKeyMessage { ... }` and `RegisterKeyMessageData { orderlyKey: String, scope: String, expiration: u64, timestamp: u64 }` similarly.
+- **Implement `prepare_withdrawal_message`:**
+  ```rust
+  fn prepare_withdrawal_message(
+      broker_id: &str,
+      destination_chain_id: u64, // Solana Chain ID
+      receiver_address: &str,    // User's address on Solana
+      token_symbol: &str,        // e.g., "USDC"
+      amount_str: &str,          // Amount as string
+      nonce: u64,
+      timestamp_ms: u64,
+  ) -> Result<WithdrawMessage, Error> // Return the serializable struct
+  ```
+  - Construct the `WithdrawMessageData`.
+  - Define the EIP-712 `domain`, `types`, and `primary_type` according to Orderly specs.
+  - Return the combined `WithdrawMessage` struct.
+- **Implement `prepare_register_orderly_key_message`:**
+  ```rust
+   fn prepare_register_orderly_key_message(
+       orderly_key: &str, // The public key being registered
+       scope: &str,       // e.g., "read,trading"
+       expiration_ms: u64,
+       timestamp_ms: u64,
+   ) -> Result<RegisterKeyMessage, Error> // Return the serializable struct
+  ```
+  - Construct the `RegisterKeyMessageData`.
+  - Define the EIP-712 `domain`, `types`, `primary_type` for key registration.
+  - Return the combined `RegisterKeyMessage` struct.
+
+## 6. Verification and Refinement
+
+- **Action:** Clone `OrderlyNetwork/solana-vault`. **(DONE - Info Used)**
+- **Action:** Locate `vault.json` (or similar) IDL file. **(DONE - IDL Found at [JS SDK Link](https://github.com/OrderlyNetwork/js-sdk/blob/main/packages/default-solana-adapter/src/idl/solana_vault.json))** Copy it into the `orderly-connector-rs` project.
+- **Action:** Find Vault Program ID. **(DONE - `ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q`)** Update `SolanaConfig` (Step 1).
+- **Action:** Analyze the **JavaScript implementation** (`helper.ts`) provided at [JS SDK Link](https://github.com/OrderlyNetwork/js-sdk/blob/main/packages/default-solana-adapter/src/helper.ts#L493) to determine the exact seeds used in `findProgramAddressSync` for all PDAs required by the `deposit` instruction (Vault PDAs and associated LayerZero/Endpoint PDAs). Update PDA helper functions (Step 2). **(TODO - Relying on JS)**
+- **Action:** If using `anchor_client`, ensure the IDL is correctly parsed and types match. If building instructions manually, ensure accounts and data layout match the IDL. Update Step 4 based on IDL. **(Partially DONE - IDL available)**
+- **Action:** Analyze the **JavaScript implementation** (`helper.ts`) to determine the logic for deriving the Address Lookup Table address (`getLookupTableAddress` function). Implement this logic in Rust. **(TODO - Relying on JS)**
+- **Action:** Analyze the **JavaScript implementation** (`helper.ts`) to determine the exact order and composition of the `.remainingAccounts([...])` for the `deposit` instruction. Ensure the Rust implementation matches precisely. **(TODO - Relying on JS)**
+
+## 7. Testing
+
+- **Unit Tests:**
+  - Test Keccak256 hashing functions.
+  - Test PDA derivation functions with known, verified seeds and inputs.
+  - Test construction of `WithdrawMessage` and `RegisterKeyMessage` structs.
+- **Integration Tests:**
+  - Test `get_withdrawal_nonce` against the Orderly API (testnet endpoint).
+  - Mock `RpcClient` responses for `prepare_solana_deposit_tx` to test:
+    - Correct fee fetching (mock view call response).
+    - Correct ALT fetching and usage.
+    - Correct blockhash usage.
+    - Verify the structure, accounts, and data of the generated `deposit` instruction against expected values based on the IDL.
+    - Verify the final base64 encoding/decoding.
+  - **Full End-to-End:** Requires deploying/using the `solana-vault` program on Solana Devnet/Testnet, funding a wallet, and sending the transaction prepared by the SDK function.
