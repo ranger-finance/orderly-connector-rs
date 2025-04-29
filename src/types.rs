@@ -489,12 +489,11 @@ pub struct GetAssetHistoryParams {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct AssetHistoryEntry {
-    pub id: u64,
+    pub id: String,
     pub token: String,
     pub side: AssetHistoryType, // Matches the enum
     pub amount: f64,
     pub fee: Option<f64>,
-    pub status: String, // e.g., "COMPLETED", "PENDING", "FAILED"
     pub transaction_hash: Option<String>,
     pub chain_id: Option<String>, // Or u64?
     pub chain_name: Option<String>,

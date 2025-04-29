@@ -5,7 +5,8 @@ mod common;
 use orderly_connector_rs::rest::client::Credentials;
 use orderly_connector_rs::rest::OrderlyService;
 use orderly_connector_rs::types::{
-    CreateOrderRequest, GetOrdersParams, OrderStatus, OrderType, Side,
+    AssetHistoryType, CreateOrderRequest, GetAssetHistoryParams, GetOrdersParams, OrderStatus,
+    OrderType, Side,
 };
 use tokio::time::{sleep, Duration};
 
@@ -117,6 +118,51 @@ async fn test_create_get_cancel_order() {
             "Failed to get order {} after cancel: {}",
             created_order_id, e
         ),
+    }
+}
+
+#[tokio::test]
+#[ignore] // Ignored by default
+async fn test_get_asset_history() {
+    let (client, creds) = setup_client();
+
+    // Get asset history without any filters
+    match client.get_asset_history(&creds, None).await {
+        Ok(resp) => {
+            println!("Get Asset History Response: {:#?}", resp);
+            assert!(resp.success, "Asset history request should succeed");
+            assert!(
+                !resp.data.rows.is_empty(),
+                "Should have at least one asset history entry"
+            );
+        }
+        Err(e) => panic!("Failed to get asset history: {}", e),
+    }
+
+    // Get asset history with filters
+    let params = GetAssetHistoryParams {
+        token: Some("USDC".to_string()),
+        side: Some(AssetHistoryType::Deposit),
+        start_t: Some(1743560693442), // Use timestamp from earliest entry we saw
+        end_t: Some(1745911452012),   // Use timestamp from latest entry we saw
+        page: Some(1),
+        size: Some(10),
+    };
+
+    match client.get_asset_history(&creds, Some(params)).await {
+        Ok(resp) => {
+            println!("Get Asset History Response with filters: {:#?}", resp);
+            assert!(
+                resp.success,
+                "Asset history request with filters should succeed"
+            );
+            // Verify that all returned entries match the filters
+            for entry in &resp.data.rows {
+                assert_eq!(entry.token, "USDC");
+                assert_eq!(entry.side, AssetHistoryType::Deposit);
+            }
+        }
+        Err(e) => panic!("Failed to get asset history with filters: {}", e),
     }
 }
 
