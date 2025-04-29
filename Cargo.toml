@@ -42,18 +42,8 @@ solabi = "0.2.0"
 ##########
 # Solana #
 ##########
-solana-account-decoder = "=1.16.13"
 solana-client = "=1.16.13"
-solana-address-lookup-table-program = "=1.16.13"
 solana-sdk = "=1.16.13"
-
-##########
-# Anchor #
-##########
-anchor-lang = "0.28.0"
-anchor-spl = "0.28.0"
-anchor-gen = "=0.3.1"
-
 
 [dev-dependencies]
 dotenv = "0.15" # Added here for tests and examples

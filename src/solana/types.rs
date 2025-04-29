@@ -1,4 +1,3 @@
-use anchor_lang::declare_id;
 use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 

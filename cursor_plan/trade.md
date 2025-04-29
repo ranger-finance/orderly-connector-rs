@@ -32,6 +32,36 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 - **Dependencies (`Cargo.toml`):** (As previously defined)
 - **Configuration (`src/solana/types.rs`):**
 
+  - **Program ID Access:**
+
+    - Program IDs are now accessed at runtime using a function, not as `const` values or via `declare_id!` macros. This avoids macro conflicts and Rust's `const` restrictions for `Pubkey::from_str`.
+    - Use the following function to get a program ID by name:
+
+    ```rust
+    use solana_sdk::pubkey::Pubkey;
+    use std::str::FromStr;
+
+    pub fn get_program_id(name: &str) -> Option<Pubkey> {
+        match name {
+            "VAULT" => Pubkey::from_str("ErBmAD61mGFKvrFNaTJuxoPwqrS8GgtwtqJTJVjFWx9Q").ok(),
+            "ENDPOINT" => Pubkey::from_str("LzV2EndpointV211111111111111111111111111111").ok(),
+            "SEND_LIB" => Pubkey::from_str("LzV2SendLib11111111111111111111111111111111").ok(),
+            "TREASURY" => Pubkey::from_str("LzV2Treasury1111111111111111111111111111111").ok(),
+            "EXECUTOR" => Pubkey::from_str("LzV2Executor1111111111111111111111111111111").ok(),
+            "PRICE_FEED" => Pubkey::from_str("LzV2PriceFeed111111111111111111111111111111").ok(),
+            "DVN" => Pubkey::from_str("LzV2DVN111111111111111111111111111111111111").ok(),
+            _ => None,
+        }
+    }
+    ```
+
+    - **Usage Example:**
+      ```rust
+      let vault_id = get_program_id("VAULT").unwrap();
+      ```
+    - This approach is necessary because `Pubkey::from_str` is not a `const fn` and cannot be used in `const` or `static` initializers.
+    - Remove all references to `declare_id!` and static `const` program ID values from the codebase and documentation.
+
   - Define `SolanaConfig` struct and constants:
 
     ```rust
