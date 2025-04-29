@@ -13,9 +13,9 @@
   - Find exact EIP 712 domain & type definitions for `Withdraw` message signing. **(TODO - BLOCKER for Withdrawal)**
   - ~~Find exact EIP 712 domain & type definitions for `AddOrderlyKey` message signing.~~ **(REMOVED - Not needed. API keys are created through broker's website)**
 - **Points Requiring Caution/Confirmation During Implementation:**
-  - **Empty PDA Seeds:** Confirm the unusual empty seeds (`[]`) for some LayerZero PDAs are correct and handled appropriately.
-  - **`dst_eid` Flexibility:** Confirm if `LAYERZERO_SOLANA_MAINNET_EID` (30109) needs to be configurable for testnets.
-  - **Orderly Account ID Format:** Confirm hex string is the standard input format.
+  - **Empty PDA Seeds:** Confirm the unusual empty seeds (`[]`) for some LayerZero PDAs are correct and handled appropriately. **(TODO)**
+  - **`dst_eid` Flexibility:** Confirm if `LAYERZERO_SOLANA_MAINNET_EID` (30109) needs to be configurable for testnets. **(TODO)**
+  - **Orderly Account ID Format:** Confirm hex string is the standard input format. **(TODO)**
 - **Implementation TODOs:**
   - Implement all PDA derivation functions in Rust (`pdas.rs`), noting empty seeds.
   - Implement `prepare_solana_deposit_tx` using derived info (including loading IDL via `include_str!`).
@@ -353,6 +353,97 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
     - Return the account ID from the response.
   - **Documentation:** Add clear instructions that users need to create their API keys through their broker's website after registration.
 
-## 7. Testing
+## 7. Detailed Implementation & Testing (NEXT STEPS)
 
-- **(Plan remains the same)**
+This section outlines the detailed implementation steps for each major function, incorporating API calls, message signing, and testing.
+
+### 7.1 Account Registration (`src/rest/client.rs`)
+
+- **Objective:** Implement the full flow for registering a Solana account with Orderly via the REST API.
+- **Steps:**
+  1.  **Add API Types:** Define necessary request/response structs for:
+      - `GET /v1/public/wallet_registered` (Check status)
+      - `GET /v1/registration_nonce` (Get nonce)
+      - `POST /v1/register_account` (Submit registration)
+  2.  **Implement `register_solana_account` method in `OrderlyService`:**
+      - Takes necessary parameters (e.g., `SolanaConfig`, `Keypair`).
+      - **Check Registration:** Call `GET /v1/public/wallet_registered`. If already registered, potentially return the existing account ID or a specific status.
+      - **Get Nonce:** Call `GET /v1/registration_nonce` to obtain a fresh `registrationNonce`.
+      - **Prepare Message:**
+        - Get current `timestamp`.
+        - Use `create_registration_message` from `src/eth/abi.rs` to construct the `RegistrationMessage`.
+        - ABI-encode the message using `solabi::encode`.
+        - Hash the encoded message using `solabi::keccak::v256`.
+      - **Sign Message:**
+        - Use the `sign_solana_message` utility (from `src/solana/signing.rs`) with the message hash and the user's `Keypair` to get the signature.
+      - **Submit Registration:**
+        - Call `POST /v1/register_account` with the required parameters (message fields, signature, user address).
+        - Parse the response to extract the `accountId`.
+      - **Return:** The `accountId` upon successful registration, or an `OrderlyError`.
+- **Testing:**
+  - Add unit tests for the registration message creation and signing logic (if not already covered by `abi.rs` tests).
+  - Add integration tests (potentially using a mock server or against the testnet) to verify the full API flow.
+
+### 7.2 Solana Deposit (`src/solana/client.rs`)
+
+- **Objective:** Finalize and test the function that prepares the Solana transaction for depositing USDC into the Orderly Vault.
+- **Steps:**
+  1.  **Review/Refine `prepare_solana_deposit_tx`:** Ensure it correctly:
+      - Takes necessary parameters (`SolanaConfig`, user `Keypair`, deposit `amount`, `orderly_account_id` as hex string).
+      - Derives all required PDAs using functions from `src/solana/pdas.rs`.
+      - Loads the Vault IDL using `include_str!`.
+      - Constructs the `DepositParams` struct.
+      - Assembles the `remaining_accounts` correctly based on LayerZero requirements.
+      - Builds the Anchor instruction using `program.request()`.
+      - Creates and partially signs the Solana `Transaction`.
+  2.  **Handle `orderly_account_id`:** Ensure the hex string input is correctly converted to `[u8; 32]`.
+- **Testing:**
+  - Add unit tests verifying the construction of the `DepositParams` and `remaining_accounts`.
+  - Add tests simulating the transaction creation process (mocking RPC calls if necessary).
+  - Add integration tests that create the transaction, sign it fully, and potentially submit it to a local validator or testnet.
+
+### 7.3 Withdrawal (`src/rest/client.rs`)
+
+- **Objective:** Implement the full flow for requesting a withdrawal from Orderly via the REST API.
+- **Steps:**
+  1.  **Add API Types:** Define necessary request/response structs for:
+      - `GET /v1/withdraw_nonce` (Get nonce)
+      - `POST /v1/withdraw_request` (Submit withdrawal request)
+  2.  **Implement `prepare_withdrawal_message` (or similar name) method in `OrderlyService`:**
+      - Takes necessary parameters (e.g., `SolanaConfig`, `Keypair`, `receiver` address, `token`, `amount`).
+      - **Fetch Nonce:** Call `GET /v1/withdraw_nonce` to obtain the `withdrawNonce`.
+      - **Prepare Message:**
+        - Get current `timestamp`.
+        - Use `create_withdrawal_message` from `src/eth/abi.rs` to construct the `WithdrawalMessage`.
+        - ABI-encode the message using `solabi::encode`.
+        - Hash the encoded message using `solabi::keccak::v256`.
+      - **Sign Message:**
+        - Use the `sign_solana_message` utility (from `src/solana/signing.rs`) with the message hash and the user's `Keypair` to get the signature.
+      - **Return:** A struct containing the original message components (required for the API call) and the calculated signature.
+  3.  **Implement `request_withdrawal` method in `OrderlyService` (if not already suitable):**
+      - Takes the prepared message components and signature.
+      - Calls `POST /v1/withdraw_request` with the correct body structure.
+      - Handles the API response (success or error).
+- **Testing:**
+  - Add unit tests for the withdrawal message creation and signing logic (if not already covered by `abi.rs` tests).
+  - Add integration tests (potentially using a mock server or against the testnet) to verify the full API flow (`get_nonce` -> prepare -> `request_withdrawal`).
+
+## 8. Final Steps
+
+- **Address Remaining TODOs:** Confirm details about empty PDA seeds, EID configurability, and account ID format.
+- **Refine Error Handling:** Ensure robust error handling throughout all flows.
+- **Add Examples:** Create clear examples demonstrating how to use the registration, deposit, and withdrawal functions.
+- **Update Documentation:** Finalize all documentation for the SDK.
+
+---
+
+## **(Original Sections 3-6 details omitted for brevity)**
+
+## 9. Testing (Overall Strategy)
+
+- **Unit Tests:** Focus on isolated logic like ABI encoding, PDA derivation, message creation, and signing utilities.
+- **Integration Tests:**
+  - Test interactions with the Orderly REST API (use mock server or testnet).
+  - Test Solana transaction building and signing.
+  - Potentially test transaction submission against a local validator or testnet.
+- **End-to-End Tests:** (Optional but recommended) Simulate a full user flow: Register -> Deposit -> Withdraw.
