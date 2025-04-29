@@ -84,21 +84,25 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 
 - **Error Handling (`src/error.rs`):** (As previously defined)
 
-## 2. Alloy ABI Implementation (`src/solana/abi.rs`)
+## 2. `solabi` ABI Implementation (`src/solana/abi.rs`)
 
 - **Message Encoding Types:**
 
   ```rust
-  use alloy::primitives::{B256, U256};
-  use alloy::sol_types::{SolType, SolValue};
+  use solabi::ethprim::{Address, B256, Bytes, U256, keccak256};
+  use solabi::{encode, decode, DecodeError, Decoder, Encode, Encoder, Size};
+  use crate::error::OrderlyError;
+  // No longer need a separate keccak helper, use solabi::ethprim::keccak256 directly
+  // use crate::solana::utils::keccak256_hash;
+  use solana_sdk::pubkey::Pubkey;
   use std::str::FromStr;
 
   // Define ABI types for withdrawal message
-  #[derive(Debug, Clone)]
+  #[derive(Debug, Clone, PartialEq)]
   pub struct WithdrawalMessage {
       pub broker_id_hash: B256,      // bytes32
       pub chain_id: U256,            // uint256
-      pub receiver: B256,            // bytes32
+      pub receiver: B256,            // bytes32 // Store as B256 for direct ABI encoding
       pub token_hash: B256,          // bytes32
       pub amount: U256,              // uint256
       pub withdraw_nonce: U256,      // uint256
@@ -106,7 +110,7 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
   }
 
   // Define ABI types for registration message
-  #[derive(Debug, Clone)]
+  #[derive(Debug, Clone, PartialEq)]
   pub struct RegistrationMessage {
       pub broker_id_hash: B256,      // bytes32
       pub chain_id: U256,            // uint256
@@ -114,29 +118,36 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
       pub registration_nonce: U256,  // uint256
   }
 
-  // Helper functions for message encoding
-  impl WithdrawalMessage {
-      pub fn encode(&self) -> Vec<u8> {
-          let mut encoded = Vec::new();
-          encoded.extend_from_slice(&self.broker_id_hash.0);
-          encoded.extend_from_slice(&self.chain_id.to_be_bytes());
-          encoded.extend_from_slice(&self.receiver.0);
-          encoded.extend_from_slice(&self.token_hash.0);
-          encoded.extend_from_slice(&self.amount.to_be_bytes());
-          encoded.extend_from_slice(&self.withdraw_nonce.to_be_bytes());
-          encoded.extend_from_slice(&self.timestamp.to_be_bytes());
-          encoded
+  // Implement solabi::Encode for WithdrawalMessage
+  // Encoding order: broker_id_hash, chain_id, receiver, token_hash, amount, withdraw_nonce, timestamp
+  impl Encode for WithdrawalMessage {
+      fn size(&self) -> Size {
+          Size::Fixed(32 * 4 + 32 + 32 + 32) // 4x bytes32, 3x uint256 (encoded as 32 bytes)
+      }
+
+      fn encode(&self, encoder: &mut Encoder) {
+          self.broker_id_hash.encode(encoder);
+          self.chain_id.encode(encoder);
+          self.receiver.encode(encoder);
+          self.token_hash.encode(encoder);
+          self.amount.encode(encoder);
+          self.withdraw_nonce.encode(encoder);
+          self.timestamp.encode(encoder);
       }
   }
 
-  impl RegistrationMessage {
-      pub fn encode(&self) -> Vec<u8> {
-          let mut encoded = Vec::new();
-          encoded.extend_from_slice(&self.broker_id_hash.0);
-          encoded.extend_from_slice(&self.chain_id.to_be_bytes());
-          encoded.extend_from_slice(&self.timestamp.to_be_bytes());
-          encoded.extend_from_slice(&self.registration_nonce.to_be_bytes());
-          encoded
+  // Implement solabi::Encode for RegistrationMessage
+  // Encoding order: broker_id_hash, chain_id, timestamp, registration_nonce
+  impl Encode for RegistrationMessage {
+      fn size(&self) -> Size {
+          Size::Fixed(32 * 1 + 32 + 32 + 32) // 1x bytes32, 3x uint256 (encoded as 32 bytes)
+      }
+
+      fn encode(&self, encoder: &mut Encoder) {
+          self.broker_id_hash.encode(encoder);
+          self.chain_id.encode(encoder);
+          self.timestamp.encode(encoder);
+          self.registration_nonce.encode(encoder);
       }
   }
 
@@ -144,18 +155,18 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
   pub fn create_withdrawal_message(
       broker_id: &str,
       chain_id: u64,
-      receiver: &str,
+      receiver_address_str: &str, // Solana address as string
       token: &str,
       amount: u64,
       withdraw_nonce: u64,
-      timestamp: u64,
+      timestamp: u64, // Unix ms
   ) -> Result<WithdrawalMessage, OrderlyError> {
-      let broker_id_hash = B256::from_slice(&keccak256_hash(broker_id.as_bytes()));
-      let token_hash = B256::from_slice(&keccak256_hash(token.as_bytes()));
-      let receiver_bytes = Pubkey::from_str(receiver)
-          .map_err(|e| OrderlyError::ValidationError(format!("Invalid receiver address: {}", e)))?
-          .to_bytes();
-      let receiver = B256::from_slice(&receiver_bytes);
+      let broker_id_hash = keccak256(broker_id.as_bytes()); // Use solabi's keccak
+      let token_hash = keccak256(token.as_bytes());       // Use solabi's keccak
+      let receiver_pubkey = Pubkey::from_str(receiver_address_str)
+          .map_err(|e| OrderlyError::ValidationError(format!("Invalid receiver pubkey string: {}", e)))?;
+      let receiver_bytes = receiver_pubkey.to_bytes();
+      let receiver = B256::from_slice(&receiver_bytes); // Convert Solana pubkey bytes to B256
 
       Ok(WithdrawalMessage {
           broker_id_hash,
@@ -171,10 +182,10 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
   pub fn create_registration_message(
       broker_id: &str,
       chain_id: u64,
-      timestamp: u64,
+      timestamp: u64, // Unix ms
       registration_nonce: u64,
   ) -> Result<RegistrationMessage, OrderlyError> {
-      let broker_id_hash = B256::from_slice(&keccak256_hash(broker_id.as_bytes()));
+      let broker_id_hash = keccak256(broker_id.as_bytes()); // Use solabi's keccak
 
       Ok(RegistrationMessage {
           broker_id_hash,
@@ -188,19 +199,21 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 - **Usage in Message Preparation:**
 
   ```rust
+  use solabi::ethprim::keccak256; // Make sure keccak256 is in scope
+
   // In prepare_withdrawal_message:
   let message = create_withdrawal_message(
       &config.broker_id,
       config.orderly_solana_chain_id,
-      &receiver,
+      &receiver, // Solana address string
       &token,
       amount,
       withdraw_nonce,
       timestamp,
   )?;
-  let encoded_message = message.encode();
-  let message_hash = keccak256_hash(&encoded_message);
-  let signature = sign_solana_message(&message_hash, keypair)?;
+  let encoded_message = solabi::encode(&message);
+  let message_hash = keccak256(&encoded_message); // Use solabi::ethprim::keccak256
+  let signature = sign_solana_message(&message_hash.0, keypair)?;
 
   // In register_solana_account:
   let message = create_registration_message(
@@ -209,37 +222,23 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
       timestamp,
       registration_nonce,
   )?;
-  let encoded_message = message.encode();
-  let message_hash = keccak256_hash(&encoded_message);
-  let signature = sign_solana_message(&message_hash, keypair)?;
+  let encoded_message = solabi::encode(&message);
+  let message_hash = keccak256(&encoded_message); // Use solabi::ethprim::keccak256
+  let signature = sign_solana_message(&message_hash.0, keypair)?;
   ```
 
 - **Key Points:**
-  - Uses Alloy's `B256` for 32-byte values (hashes, addresses)
-  - Uses Alloy's `U256` for large integers (chain ID, amounts, nonces)
-  - Implements manual ABI encoding to match exact byte layout
-  - Provides type-safe message creation functions
-  - Integrates with existing keccak256 hashing and Solana signing
+  - Uses `solabi::ethprim` types like `B256`, `U256`.
+  - Implements `solabi::Encode` trait for `WithdrawalMessage` and `RegistrationMessage` to define the exact encoding sequence.
+  - Uses `solabi::encode(&message)` to perform the ABI encoding.
+  - Provides type-safe message creation functions.
+  - Uses `solabi::ethprim::keccak256` for all necessary hashing (broker ID, token ID, final encoded message). **Crucially relies on this implementation matching the standard expected by Orderly's backend.**
+  - Converts the Solana receiver `Pubkey` to `B256` for ABI encoding within the `create_withdrawal_message` function.
 
 ## 3. Core Solana Utilities (`src/solana/utils.rs`, `src/solana/pdas.rs`)
 
 - **Hashing (`src/solana/utils.rs`):**
-
-  ```rust
-  use ethers_core::utils::keccak256;
-
-  /// Calculates the Keccak256 hash, matching common JS libraries.
-  pub fn keccak256_hash(data: &[u8]) -> [u8; 32] {
-      keccak256(data)
-  }
-  // ... hash_broker_id, hash_token_id ...
-  ```
-
-  - **Note:** Using `ethers-core` `keccak256` is preferred for exact JS compatibility.
-
-- **PDA Derivation (`src/solana/pdas.rs`):**
-  - **(Implementation TODO)** Implement all functions previously listed.
-  - **Caution:** For functions like `find_endpoint_setting_pda`, `find_uln_setting_pda`, `find_price_feed_pda` which use empty seeds (`[]`), ensure the implementation correctly handles `Pubkey::find_program_address(&[], &program_id)`. Add comments noting the unusual nature and reliance on JS analysis.
+  - _Remove the `keccak256_hash` helper function as it's no longer needed. Use `solabi::ethprim::keccak256` directly where hashing is required._
 
 ## 4. API Client Enhancements (`src/rest/client.rs` or similar)
 
@@ -286,16 +285,15 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
     - `withdrawNonce`: string (From API)
     - `timestamp`: string (Unix ms timestamp)
   - **Hashing/Encoding (Assumptions based on Registration Gist & API fields):**
-    - Hash `brokerId` using `solidityPackedKeccak256` -> `bytes32`.
-    - Hash `token` string using `solidityPackedKeccak256` -> `bytes32`.
-    - Convert `receiver` pubkey string to its 32 bytes -> `bytes32`.
-    - **Assumed ABI Types:** `["bytes32", "uint256", "bytes32", "bytes32", "uint256", "uint256", "uint256"]`
-    - **Assumed ABI Order:** `[hash(brokerId), chainId, bytes32(receiver_pubkey), hash(token), amount, withdrawNonce, timestamp]`
-    - ABI-encode these values using `ethers::abi::encode` (or equivalent Rust implementation).
-    - Calculate the Keccak256 hash of the encoded bytes.
+    - Hash `brokerId` using `solabi::ethprim::keccak256` -> `B256`.
+    - Hash `token` string using `solabi::ethprim::keccak256` -> `B256`.
+    - Convert `receiver` pubkey string to its 32 bytes -> `B256`.
+    - Create `WithdrawalMessage` struct using `create_withdrawal_message`.
+    - ABI-encode the struct using `solabi::encode`.
+    - Calculate the Keccak256 hash of the encoded bytes using `solabi::ethprim::keccak256` -> `B256`.
   - **Signing (Assumption based on Registration Gist):**
-    - Convert the final hash bytes to a hex string.
-    - Encode this _hex string_ using a `TextEncoder` equivalent (e.g., `hash_hex.as_bytes()`).
+    - Get the byte slice from the final hash: `message_hash.0`.
+    - Encode this _byte slice_ using a `TextEncoder` equivalent (e.g., `hash_hex.as_bytes()`).
     - Call the `sign_solana_message` utility (from `src/solana/signing.rs`) with these TextEncoder-bytes and the user's keypair.
   - **Return:** The original message components (as needed by the `POST /v1/withdraw_request` API body) and the hex-encoded signature.
   - **Documentation:** Clearly document the assumptions made about ABI encoding order/types and the `TextEncoder` step.
@@ -312,14 +310,13 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
     - `timestamp`: string (Unix ms timestamp)
     - `registrationNonce`: string (From API)
   - **Hashing/Encoding (Based on Example):**
-    - Hash `brokerId` using `keccak256` -> `bytes32`.
-    - **ABI Types:** `["bytes32", "uint256", "uint256", "uint256"]`
-    - **ABI Order:** `[hash(brokerId), chainId, timestamp, registrationNonce]`
-    - ABI-encode these values using `ethers::abi::encode` (or equivalent Rust implementation).
-    - Calculate the Keccak256 hash of the encoded bytes.
+    - Hash `brokerId` using `solabi::ethprim::keccak256` -> `B256`.
+    - Create `RegistrationMessage` struct using `create_registration_message`.
+    - ABI-encode the struct using `solabi::encode`.
+    - Calculate the Keccak256 hash of the encoded bytes using `solabi::ethprim::keccak256` -> `B256`.
   - **Signing (Based on Example):**
-    - Convert the final hash bytes to a hex string.
-    - Encode this _hex string_ using UTF-8 bytes.
+    - Get the byte slice from the final hash: `message_hash.0`.
+    - Encode this _byte slice_ using UTF-8 bytes.
     - Call the `sign_solana_message` utility with these bytes and the user's keypair.
   - **Submit Registration:**
     - Call `POST /v1/register_account` with the message, signature, and user address.

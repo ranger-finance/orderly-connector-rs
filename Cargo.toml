@@ -37,6 +37,7 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version="1.6.1", features = ["v4"] }
+solabi = "0.2.0"
 
 ##########
 # Solana #
