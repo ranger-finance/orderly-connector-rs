@@ -11,7 +11,7 @@
 - **Clarify with Orderly Specs/Docs:**
   - ~~Is Orderly Account ID (`[u8; 32]`) needed for on-chain `DepositParams`, and how to get it?~~ **(CONFIRMED - Needed. SDK function requires it as input.)**
   - Find exact EIP 712 domain & type definitions for `Withdraw` message signing. **(TODO - BLOCKER for Withdrawal)**
-  - Find exact EIP 712 domain & type definitions for `AddOrderlyKey` message signing. **(TODO - BLOCKER for Key Reg)**
+  - ~~Find exact EIP 712 domain & type definitions for `AddOrderlyKey` message signing.~~ **(REMOVED - Not needed. API keys are created through broker's website)**
 - **Points Requiring Caution/Confirmation During Implementation:**
   - **Empty PDA Seeds:** Confirm the unusual empty seeds (`[]`) for some LayerZero PDAs are correct and handled appropriately.
   - **`dst_eid` Flexibility:** Confirm if `LAYERZERO_SOLANA_MAINNET_EID` (30109) needs to be configurable for testnets.
@@ -19,7 +19,8 @@
 - **Implementation TODOs:**
   - Implement all PDA derivation functions in Rust (`pdas.rs`), noting empty seeds.
   - Implement `prepare_solana_deposit_tx` using derived info (including loading IDL via `include_str!`).
-  - Implement EIP 712 preparation functions (`prepare_withdrawal_message`, `prepare_register_orderly_key_message`) based on **ASSUMPTIONS** if official specs remain unavailable (document assumptions clearly).
+  - Implement EIP 712 preparation functions (`prepare_withdrawal_message`) based on **ASSUMPTIONS** if official specs remain unavailable (document assumptions clearly).
+  - Implement account registration functionality (`register_solana_account`) following the provided example.
 
 ---
 
@@ -83,7 +84,144 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 
 - **Error Handling (`src/error.rs`):** (As previously defined)
 
-## 2. Core Solana Utilities (`src/solana/utils.rs`, `src/solana/pdas.rs`)
+## 2. Alloy ABI Implementation (`src/solana/abi.rs`)
+
+- **Message Encoding Types:**
+
+  ```rust
+  use alloy::primitives::{B256, U256};
+  use alloy::sol_types::{SolType, SolValue};
+  use std::str::FromStr;
+
+  // Define ABI types for withdrawal message
+  #[derive(Debug, Clone)]
+  pub struct WithdrawalMessage {
+      pub broker_id_hash: B256,      // bytes32
+      pub chain_id: U256,            // uint256
+      pub receiver: B256,            // bytes32
+      pub token_hash: B256,          // bytes32
+      pub amount: U256,              // uint256
+      pub withdraw_nonce: U256,      // uint256
+      pub timestamp: U256,           // uint256
+  }
+
+  // Define ABI types for registration message
+  #[derive(Debug, Clone)]
+  pub struct RegistrationMessage {
+      pub broker_id_hash: B256,      // bytes32
+      pub chain_id: U256,            // uint256
+      pub timestamp: U256,           // uint256
+      pub registration_nonce: U256,  // uint256
+  }
+
+  // Helper functions for message encoding
+  impl WithdrawalMessage {
+      pub fn encode(&self) -> Vec<u8> {
+          let mut encoded = Vec::new();
+          encoded.extend_from_slice(&self.broker_id_hash.0);
+          encoded.extend_from_slice(&self.chain_id.to_be_bytes());
+          encoded.extend_from_slice(&self.receiver.0);
+          encoded.extend_from_slice(&self.token_hash.0);
+          encoded.extend_from_slice(&self.amount.to_be_bytes());
+          encoded.extend_from_slice(&self.withdraw_nonce.to_be_bytes());
+          encoded.extend_from_slice(&self.timestamp.to_be_bytes());
+          encoded
+      }
+  }
+
+  impl RegistrationMessage {
+      pub fn encode(&self) -> Vec<u8> {
+          let mut encoded = Vec::new();
+          encoded.extend_from_slice(&self.broker_id_hash.0);
+          encoded.extend_from_slice(&self.chain_id.to_be_bytes());
+          encoded.extend_from_slice(&self.timestamp.to_be_bytes());
+          encoded.extend_from_slice(&self.registration_nonce.to_be_bytes());
+          encoded
+      }
+  }
+
+  // Helper functions for creating messages
+  pub fn create_withdrawal_message(
+      broker_id: &str,
+      chain_id: u64,
+      receiver: &str,
+      token: &str,
+      amount: u64,
+      withdraw_nonce: u64,
+      timestamp: u64,
+  ) -> Result<WithdrawalMessage, OrderlyError> {
+      let broker_id_hash = B256::from_slice(&keccak256_hash(broker_id.as_bytes()));
+      let token_hash = B256::from_slice(&keccak256_hash(token.as_bytes()));
+      let receiver_bytes = Pubkey::from_str(receiver)
+          .map_err(|e| OrderlyError::ValidationError(format!("Invalid receiver address: {}", e)))?
+          .to_bytes();
+      let receiver = B256::from_slice(&receiver_bytes);
+
+      Ok(WithdrawalMessage {
+          broker_id_hash,
+          chain_id: U256::from(chain_id),
+          receiver,
+          token_hash,
+          amount: U256::from(amount),
+          withdraw_nonce: U256::from(withdraw_nonce),
+          timestamp: U256::from(timestamp),
+      })
+  }
+
+  pub fn create_registration_message(
+      broker_id: &str,
+      chain_id: u64,
+      timestamp: u64,
+      registration_nonce: u64,
+  ) -> Result<RegistrationMessage, OrderlyError> {
+      let broker_id_hash = B256::from_slice(&keccak256_hash(broker_id.as_bytes()));
+
+      Ok(RegistrationMessage {
+          broker_id_hash,
+          chain_id: U256::from(chain_id),
+          timestamp: U256::from(timestamp),
+          registration_nonce: U256::from(registration_nonce),
+      })
+  }
+  ```
+
+- **Usage in Message Preparation:**
+
+  ```rust
+  // In prepare_withdrawal_message:
+  let message = create_withdrawal_message(
+      &config.broker_id,
+      config.orderly_solana_chain_id,
+      &receiver,
+      &token,
+      amount,
+      withdraw_nonce,
+      timestamp,
+  )?;
+  let encoded_message = message.encode();
+  let message_hash = keccak256_hash(&encoded_message);
+  let signature = sign_solana_message(&message_hash, keypair)?;
+
+  // In register_solana_account:
+  let message = create_registration_message(
+      &config.broker_id,
+      config.orderly_solana_chain_id,
+      timestamp,
+      registration_nonce,
+  )?;
+  let encoded_message = message.encode();
+  let message_hash = keccak256_hash(&encoded_message);
+  let signature = sign_solana_message(&message_hash, keypair)?;
+  ```
+
+- **Key Points:**
+  - Uses Alloy's `B256` for 32-byte values (hashes, addresses)
+  - Uses Alloy's `U256` for large integers (chain ID, amounts, nonces)
+  - Implements manual ABI encoding to match exact byte layout
+  - Provides type-safe message creation functions
+  - Integrates with existing keccak256 hashing and Solana signing
+
+## 3. Core Solana Utilities (`src/solana/utils.rs`, `src/solana/pdas.rs`)
 
 - **Hashing (`src/solana/utils.rs`):**
 
@@ -103,11 +241,11 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
   - **(Implementation TODO)** Implement all functions previously listed.
   - **Caution:** For functions like `find_endpoint_setting_pda`, `find_uln_setting_pda`, `find_price_feed_pda` which use empty seeds (`[]`), ensure the implementation correctly handles `Pubkey::find_program_address(&[], &program_id)`. Add comments noting the unusual nature and reliance on JS analysis.
 
-## 3. API Client Enhancements (`src/rest/client.rs` or similar)
+## 4. API Client Enhancements (`src/rest/client.rs` or similar)
 
 - **(DONE - Code outlined previously is sufficient)**
 
-## 4. Solana Deposit Implementation (`src/solana/client.rs`)
+## 5. Solana Deposit Implementation (`src/solana/client.rs`)
 
 - **Argument/Account Structs (`src/solana/types.rs`):**
   - **(DONE - Structs previously defined based on IDL are correct)**
@@ -124,7 +262,7 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
   // ... rest of function ...
   ```
 
-## 5. Off-Chain Message Preparation (Withdrawal & Key Reg) (`src/models.rs`, `src/solana/signing.rs`)
+## 6. Off-Chain Message Preparation (Withdrawal & Account Registration) (`src/models.rs`, `src/solana/signing.rs`)
 
 - **Serializable Structs:**
   - **(Structs previously defined are suitable)**
@@ -161,17 +299,32 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
     - Call the `sign_solana_message` utility (from `src/solana/signing.rs`) with these TextEncoder-bytes and the user's keypair.
   - **Return:** The original message components (as needed by the `POST /v1/withdraw_request` API body) and the hex-encoded signature.
   - **Documentation:** Clearly document the assumptions made about ABI encoding order/types and the `TextEncoder` step.
-- **Implement `prepare_register_orderly_key_message`:**
-  - **(Implementation TODO - BLOCKED by missing message structure)**
-  - Need API documentation or an example for the specific fields, types, order, and nonce requirements for key registration on Solana.
-  - Follow the same hashing/encoding/signing pattern once the structure is known.
-
-## 6. Verification and Refinement
-
-- **(Status updated, Withdrawal structure largely known, KeyReg structure pending)**
-- **Need to confirm:** The **exact ABI encoding types and order** assumed for the Solana withdrawal message (hash(brokerId), chainId, bytes32(receiver), hash(token), amount, nonce, timestamp).
-- **Need to confirm:** Whether the final hash's hex representation needs to be **`TextEncoder`-encoded** before signing via the Memo transaction for Solana withdrawals (currently assumed YES based on registration Gist).
-- **Need to find:** The **exact message structure** (fields, types, order, nonce source) for the `AddOrderlyKey` operation on Solana.
+- **Implement `register_solana_account` (within `src/rest/client.rs`):**
+  - **(Implementation TODO - Based on provided example)**
+  - **Check Registration Status:**
+    - Call `GET /v1/public/wallet_registered` to check if the wallet is already registered.
+  - **Get Registration Nonce:**
+    - Call `GET /v1/registration_nonce` to get a unique nonce for registration.
+  - **Message Fields (Confirmed by API Docs):**
+    - `brokerId`: string (from config)
+    - `chainId`: integer (Solana chain ID, e.g., 900900900, from config)
+    - `chainType`: string ("SOL")
+    - `timestamp`: string (Unix ms timestamp)
+    - `registrationNonce`: string (From API)
+  - **Hashing/Encoding (Based on Example):**
+    - Hash `brokerId` using `keccak256` -> `bytes32`.
+    - **ABI Types:** `["bytes32", "uint256", "uint256", "uint256"]`
+    - **ABI Order:** `[hash(brokerId), chainId, timestamp, registrationNonce]`
+    - ABI-encode these values using `ethers::abi::encode` (or equivalent Rust implementation).
+    - Calculate the Keccak256 hash of the encoded bytes.
+  - **Signing (Based on Example):**
+    - Convert the final hash bytes to a hex string.
+    - Encode this _hex string_ using UTF-8 bytes.
+    - Call the `sign_solana_message` utility with these bytes and the user's keypair.
+  - **Submit Registration:**
+    - Call `POST /v1/register_account` with the message, signature, and user address.
+    - Return the account ID from the response.
+  - **Documentation:** Add clear instructions that users need to create their API keys through their broker's website after registration.
 
 ## 7. Testing
 
