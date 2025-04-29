@@ -10,8 +10,8 @@
   - ~~Determine source/value of LayerZero Destination EID (`dst_eid`).~~ **(DONE - Hardcoded 30109)**
 - **Clarify with Orderly Specs/Docs:**
   - ~~Is Orderly Account ID (`[u8; 32]`) needed for on-chain `DepositParams`, and how to get it?~~ **(CONFIRMED - Needed. SDK function requires it as input.)**
-  - Find exact EIP-712 domain & type definitions for `Withdraw` message signing. **(TODO - BLOCKER for Withdrawal)**
-  - Find exact EIP-712 domain & type definitions for `AddOrderlyKey` message signing. **(TODO - BLOCKER for Key Reg)**
+  - Find exact EIP 712 domain & type definitions for `Withdraw` message signing. **(TODO - BLOCKER for Withdrawal)**
+  - Find exact EIP 712 domain & type definitions for `AddOrderlyKey` message signing. **(TODO - BLOCKER for Key Reg)**
 - **Points Requiring Caution/Confirmation During Implementation:**
   - **Empty PDA Seeds:** Confirm the unusual empty seeds (`[]`) for some LayerZero PDAs are correct and handled appropriately.
   - **`dst_eid` Flexibility:** Confirm if `LAYERZERO_SOLANA_MAINNET_EID` (30109) needs to be configurable for testnets.
@@ -19,7 +19,7 @@
 - **Implementation TODOs:**
   - Implement all PDA derivation functions in Rust (`pdas.rs`), noting empty seeds.
   - Implement `prepare_solana_deposit_tx` using derived info (including loading IDL via `include_str!`).
-  - Implement EIP-712 preparation functions (`prepare_withdrawal_message`, `prepare_register_orderly_key_message`) based on **ASSUMPTIONS** if official specs remain unavailable (document assumptions clearly).
+  - Implement EIP 712 preparation functions (`prepare_withdrawal_message`, `prepare_register_orderly_key_message`) based on **ASSUMPTIONS** if official specs remain unavailable (document assumptions clearly).
 
 ---
 
@@ -70,9 +70,11 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
         pub usdc_mint: Pubkey,
         pub broker_id: String,
         // pub layerzero_dst_eid: Option<u32>, // Optional: Make configurable? Defaults to mainnet const?
-        // Include details needed for EIP-712 if fetched from config
+        // Include details needed for EIP 712 if fetched from config
         // pub orderly_chain_id: u64, // e.g., 421614 for Arb Sepolia
         // pub eip712_verifying_contract: String, // Address as hex string
+        // Solana Chain ID used for off-chain message signing (e.g., 900900900 from gist)
+        pub orderly_solana_chain_id: u64,
     }
 
     // LayerZero Endpoint ID for Solana Mainnet (Verified from JS: getDstEID)
@@ -122,22 +124,38 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
   // ... rest of function ...
   ```
 
-## 5. Off-Chain Message Preparation (Withdrawal & Key Reg) (`src/models.rs`)
+## 5. Off-Chain Message Preparation (Withdrawal & Key Reg) (`src/models.rs`, `src/solana/signing.rs`)
 
 - **Serializable Structs:**
   - **(Structs previously defined are suitable)**
+- **Implement Solana Signing Utility (`src/solana/signing.rs`):**
+  - Create a helper function `sign_solana_message(message_bytes: &[u8], keypair: &Keypair) -> Result<String, OrderlyError>` that:
+    - Takes the final message bytes to be signed (e.g., the Keccak256 hash, potentially TextEncoded as per the Gist).
+    - Creates a Solana transaction with a Memo instruction containing these bytes.
+    - Sets fee payer and a dummy blockhash.
+    - Signs the transaction using the provided keypair.
+    - Returns the hex-encoded transaction signature.
+    - This encapsulates the logic from the Gist's `signMessage` function.
 - **Implement `prepare_withdrawal_message` (`src/client.rs` or `src/rest/client.rs`):**
-  - **(Implementation TODO - BLOCKED by missing EIP-712 spec)**
-  - Implement based on **ASSUMPTIONS** outlined previously if spec remains unavailable.
-  - Clearly document the assumptions made about domain, types, and address formatting.
+  - **(Implementation TODO - BLOCKED by missing message structure)**
+  - Determine the exact fields, types, and order for the withdrawal message (`receiver`, `token`, `amount`, `timestamp`, `chainId`, `brokerId`, nonce?).
+  - Hash the `brokerId` using `solidityPackedKeccak256`.
+  - ABI-encode the fields (similar to registration Gist, using `ethers::abi::AbiEncode`).
+  - Calculate the Keccak256 hash of the encoded bytes.
+  - **Crucial:** Verify if the raw hash bytes or the `TextEncoder`-encoded hex string of the hash should be passed to the Solana signing utility. The Gist uses `TextEncoder`, which is unusual and needs confirmation. Assume `TextEncoder` for now, mirroring the Gist.
+  - Call the `sign_solana_message` utility with the prepared bytes and the user's keypair.
+  - Return the original message components and the signature.
+  - Clearly document assumptions made about the message structure and the `TextEncoder` step if official specs remain unavailable.
 - **Implement `prepare_register_orderly_key_message`:**
-  - **(Implementation TODO - BLOCKED by missing EIP-712 spec)**
-  - Implement based on **ASSUMPTIONS** if spec remains unavailable.
-  - Clearly document assumptions.
+  - **(Implementation TODO - BLOCKED by missing message structure)**
+  - Follow the same process as withdrawal: determine exact message structure (fields like `orderlyKey`, `scope`, `timestamp`, `chainId`, `brokerId`, nonce?), hash/encode, sign using the Solana utility, and return results.
+  - Document assumptions.
 
 ## 6. Verification and Refinement
 
-- **(Status updated previously, remaining TODOs are implementation or finding EIP-712 specs)**
+- **(Status updated, remaining TODOs are implementation or finding exact message structures for Withdrawal/KeyReg)**
+- **Need to confirm:** The exact fields, types, and encoding order for Withdrawal and AddOrderlyKey messages.
+- **Need to confirm:** Whether the final hash should be signed directly or if its hex representation needs to be `TextEncoder`-encoded before signing via the Memo transaction, as shown in the registration Gist.
 
 ## 7. Testing
 
