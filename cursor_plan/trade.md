@@ -136,26 +136,42 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
     - Signs the transaction using the provided keypair.
     - Returns the hex-encoded transaction signature.
     - This encapsulates the logic from the Gist's `signMessage` function.
-- **Implement `prepare_withdrawal_message` (`src/client.rs` or `src/rest/client.rs`):**
-  - **(Implementation TODO - BLOCKED by missing message structure)**
-  - Determine the exact fields, types, and order for the withdrawal message (`receiver`, `token`, `amount`, `timestamp`, `chainId`, `brokerId`, nonce?).
-  - Hash the `brokerId` using `solidityPackedKeccak256`.
-  - ABI-encode the fields (similar to registration Gist, using `ethers::abi::AbiEncode`).
-  - Calculate the Keccak256 hash of the encoded bytes.
-  - **Crucial:** Verify if the raw hash bytes or the `TextEncoder`-encoded hex string of the hash should be passed to the Solana signing utility. The Gist uses `TextEncoder`, which is unusual and needs confirmation. Assume `TextEncoder` for now, mirroring the Gist.
-  - Call the `sign_solana_message` utility with the prepared bytes and the user's keypair.
-  - Return the original message components and the signature.
-  - Clearly document assumptions made about the message structure and the `TextEncoder` step if official specs remain unavailable.
+- **Implement `prepare_withdrawal_message` (likely within `src/rest/client.rs` or called from it):**
+  - **(Implementation TODO - Assumptions need verification)**
+  - **Fetch Nonce:** First, call the `GET /v1/withdraw_nonce` endpoint (implemented in `src/rest/client.rs`) to get the `withdrawNonce`.
+  - **Message Fields (Confirmed by API Docs):**
+    - `brokerId`: string (from config)
+    - `chainId`: integer (Solana chain ID, e.g., 900900900, from config)
+    - `receiver`: string (Recipient Solana address)
+    - `token`: string (e.g., "USDC")
+    - `amount`: number (Withdrawal amount)
+    - `withdrawNonce`: string (From API)
+    - `timestamp`: string (Unix ms timestamp)
+  - **Hashing/Encoding (Assumptions based on Registration Gist & API fields):**
+    - Hash `brokerId` using `solidityPackedKeccak256` -> `bytes32`.
+    - Hash `token` string using `solidityPackedKeccak256` -> `bytes32`.
+    - Convert `receiver` pubkey string to its 32 bytes -> `bytes32`.
+    - **Assumed ABI Types:** `["bytes32", "uint256", "bytes32", "bytes32", "uint256", "uint256", "uint256"]`
+    - **Assumed ABI Order:** `[hash(brokerId), chainId, bytes32(receiver_pubkey), hash(token), amount, withdrawNonce, timestamp]`
+    - ABI-encode these values using `ethers::abi::encode` (or equivalent Rust implementation).
+    - Calculate the Keccak256 hash of the encoded bytes.
+  - **Signing (Assumption based on Registration Gist):**
+    - Convert the final hash bytes to a hex string.
+    - Encode this _hex string_ using a `TextEncoder` equivalent (e.g., `hash_hex.as_bytes()`).
+    - Call the `sign_solana_message` utility (from `src/solana/signing.rs`) with these TextEncoder-bytes and the user's keypair.
+  - **Return:** The original message components (as needed by the `POST /v1/withdraw_request` API body) and the hex-encoded signature.
+  - **Documentation:** Clearly document the assumptions made about ABI encoding order/types and the `TextEncoder` step.
 - **Implement `prepare_register_orderly_key_message`:**
   - **(Implementation TODO - BLOCKED by missing message structure)**
-  - Follow the same process as withdrawal: determine exact message structure (fields like `orderlyKey`, `scope`, `timestamp`, `chainId`, `brokerId`, nonce?), hash/encode, sign using the Solana utility, and return results.
-  - Document assumptions.
+  - Need API documentation or an example for the specific fields, types, order, and nonce requirements for key registration on Solana.
+  - Follow the same hashing/encoding/signing pattern once the structure is known.
 
 ## 6. Verification and Refinement
 
-- **(Status updated, remaining TODOs are implementation or finding exact message structures for Withdrawal/KeyReg)**
-- **Need to confirm:** The exact fields, types, and encoding order for Withdrawal and AddOrderlyKey messages.
-- **Need to confirm:** Whether the final hash should be signed directly or if its hex representation needs to be `TextEncoder`-encoded before signing via the Memo transaction, as shown in the registration Gist.
+- **(Status updated, Withdrawal structure largely known, KeyReg structure pending)**
+- **Need to confirm:** The **exact ABI encoding types and order** assumed for the Solana withdrawal message (hash(brokerId), chainId, bytes32(receiver), hash(token), amount, nonce, timestamp).
+- **Need to confirm:** Whether the final hash's hex representation needs to be **`TextEncoder`-encoded** before signing via the Memo transaction for Solana withdrawals (currently assumed YES based on registration Gist).
+- **Need to find:** The **exact message structure** (fields, types, order, nonce source) for the `AddOrderlyKey` operation on Solana.
 
 ## 7. Testing
 
