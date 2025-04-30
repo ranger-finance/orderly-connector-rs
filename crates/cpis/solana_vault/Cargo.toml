@@ -2,6 +2,11 @@
 name = "solana_vault_cpi"
 version = "0.1.0"
 edition = "2021"
+description = "CPI interface for Solana Vault on Solana blockchain. Provides Anchor CPI bindings for vault operations."
+license = "MIT"
+authors = ["Ranger Finance <contact@ranger.finance>"]
+repository = "https://github.com/ranger-finance/orderly-connector-rs"
+readme = "README.md"
 
 [features]
 no-entrypoint = []
@@ -11,6 +16,9 @@ cpi = ["no-entrypoint"]
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-gen = "=0.3.1"
+solana-sdk = "=1.16.13"
+spl-token = "=3.5.0"
+spl-associated-token-account = "=1.1.3"
 
 
 [package.metadata.cargo-machete]
