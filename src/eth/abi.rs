@@ -25,6 +25,7 @@
 //!
 //! ```rust
 //! use orderly_connector_rs::eth::abi::{create_withdrawal_message, create_registration_message};
+//! use orderly_connector_rs::error::OrderlyError;
 //!
 //! // Create a withdrawal message
 //! let withdrawal = create_withdrawal_message(
@@ -35,7 +36,7 @@
 //!     100_000_000,
 //!     12345,
 //!     1678886400000,
-//! )?;
+//! ).expect("Failed to create withdrawal message");
 //!
 //! // Create a registration message
 //! let registration = create_registration_message(
@@ -43,10 +44,10 @@
 //!     900900900,
 //!     1678886400000,
 //!     12345,
-//! )?;
+//! ).expect("Failed to create registration message");
 //! ```
 
-use crate::error::OrderlyError;
+use crate::error::{OrderlyError, Result};
 use solabi::encode::{Encode, Encoder, Size};
 use solabi::ethprim::U256;
 use solabi::keccak::v256; // Use the canonical Keccak-256 implementation
@@ -152,6 +153,7 @@ impl Encode for RegistrationMessage {
 ///
 /// ```rust
 /// use orderly_connector_rs::eth::abi::create_withdrawal_message;
+/// use orderly_connector_rs::error::OrderlyError;
 ///
 /// let message = create_withdrawal_message(
 ///     "woofi_pro",
@@ -161,7 +163,7 @@ impl Encode for RegistrationMessage {
 ///     100_000_000,
 ///     12345,
 ///     1678886400000,
-/// )?;
+/// ).expect("Failed to create message");
 /// ```
 pub fn create_withdrawal_message(
     broker_id: &str,
@@ -211,13 +213,14 @@ pub fn create_withdrawal_message(
 ///
 /// ```rust
 /// use orderly_connector_rs::eth::abi::create_registration_message;
+/// use orderly_connector_rs::error::OrderlyError;
 ///
 /// let message = create_registration_message(
 ///     "woofi_pro",
 ///     900900900,
 ///     1678886400000,
 ///     12345,
-/// )?;
+/// ).expect("Failed to create message");
 /// ```
 pub fn create_registration_message(
     broker_id: &str,
@@ -278,7 +281,7 @@ mod tests {
             withdraw_nonce,
             timestamp,
         )
-        .unwrap();
+        .expect("Failed to create message");
 
         // Pre-calculate expected hashes/values
         let expected_broker_id_hash =
@@ -337,7 +340,7 @@ mod tests {
 
         let registration_message =
             create_registration_message(broker_id, chain_id, timestamp, registration_nonce)
-                .unwrap();
+                .expect("Failed to create message");
 
         // Pre-calculate expected hash
         let expected_broker_id_hash =

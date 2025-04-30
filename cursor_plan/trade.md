@@ -2,7 +2,7 @@
 
 **Current Blockers & TODOs (Summary):**
 
-- ~~**Analyze JS (`helper.ts`):**~~
+- ~~**Analyze JS (`helper.ts`):**~~ **(DONE)**
   - ~~Verify exact seeds & args for ALL PDA derivations (Vault, LZ/Endpoint related).~~ **(DONE)**
   - ~~Verify exact structure, order, and keys for `.remainingAccounts` in the `deposit` instruction.~~ **(DONE)**
   - ~~Verify Address Lookup Table (ALT) derivation logic (`getLookupTableAddress`).~~ **(DONE)**
@@ -20,7 +20,7 @@
   - Implement all PDA derivation functions in Rust (`pdas.rs`), noting empty seeds.
   - Implement `prepare_solana_deposit_tx` using derived info (including loading IDL via `include_str!`).
   - Implement EIP 712 preparation functions (`prepare_withdrawal_message`) based on **ASSUMPTIONS** if official specs remain unavailable (document assumptions clearly).
-  - Implement account registration functionality (`register_solana_account`) following the provided example.
+- Implement account registration functionality (`register_solana_account`) following the provided example. (COMPLETED)
 
 ---
 
@@ -114,7 +114,7 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 
 - **Error Handling (`src/error.rs`):** (As previously defined)
 
-## 2. `solabi` ABI Implementation (`src/eth/abi.rs`)
+## 2. `solabi` ABI Implementation (`src/eth/abi.rs`) (COMPLETED)
 
 - **Message Encoding Types:**
 
@@ -267,122 +267,45 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 
 ## 3. Core Solana Utilities (`src/solana/utils.rs`, `src/solana/pdas.rs`)
 
-- **Hashing (`src/solana/utils.rs`):**
-  - _Remove the `keccak256_hash` helper function as it's no longer needed. Use `solabi::keccak::v256` directly where hashing is required._
-
-## 4. API Client Enhancements (`src/rest/client.rs` or similar)
-
-- **(DONE - Code outlined previously is sufficient)**
+## 4. API Client Enhancements (`src/rest/client.rs` or similar) (COMPLETED)
 
 ## 5. Solana Deposit Implementation (`src/solana/client.rs`)
-
-- **Argument/Account Structs (`src/solana/types.rs`):**
-  - **(DONE - Structs previously defined based on IDL are correct)**
-- **Main Function (`src/solana/client.rs`):**
-  - **(Implementation TODO)** Implement the function as outlined previously.
-  - **Assumption:** `orderly_account_id` is provided as a valid hex string argument.
-  - **IDL Loading:** Load the IDL JSON string using `include_str!("idl/solana_vault.json")` (assuming the IDL file is placed there) when initializing the `anchor_client::Program`.
-  ```rust
-  // Inside prepare_solana_deposit_tx
-  const IDL_JSON: &str = include_str!("idl/solana_vault.json");
-  let idl: anchor_client::idl::Idl = serde_json::from_str(IDL_JSON)
-      .map_err(|e| OrderlyError::InvalidConfiguration(format!("Failed to parse IDL: {}", e)))?;
-  let anchor_program = anchor_client.program_with_idl(program_ids::VAULT_PROGRAM_ID, idl)?;
-  // ... rest of function ...
-  ```
 
 ## 6. Off-Chain Message Preparation (Withdrawal & Account Registration) (`src/models.rs`, `src/solana/signing.rs`)
 
 - **Serializable Structs:**
-  - **(Structs previously defined are suitable)**
+  - **(Structs previously defined are suitable) - DONE**
 - **Implement Solana Signing Utility (`src/solana/signing.rs`):**
-  - Create a helper function `sign_solana_message(message_bytes: &[u8], keypair: &Keypair) -> Result<String, OrderlyError>` that:
-    - Takes the final message bytes to be signed (e.g., the Keccak256 hash, potentially TextEncoded as per the Gist).
-    - Creates a Solana transaction with a Memo instruction containing these bytes.
-    - Sets fee payer and a dummy blockhash.
-    - Signs the transaction using the provided keypair.
-    - Returns the hex-encoded transaction signature.
-    - This encapsulates the logic from the Gist's `signMessage` function.
+  - Create a helper function `sign_solana_message(message_bytes: &[u8], keypair: &Keypair) -> Result<String, OrderlyError>` - **DONE**
 - **Implement `prepare_withdrawal_message` (likely within `src/rest/client.rs` or called from it):**
   - **(Implementation TODO - Assumptions need verification)**
-  - **Fetch Nonce:** First, call the `GET /v1/withdraw_nonce` endpoint (implemented in `src/rest/client.rs`) to get the `withdrawNonce`.
-  - **Message Fields (Confirmed by API Docs):**
-    - `brokerId`: string (from config)
-    - `chainId`: integer (Solana chain ID, e.g., 900900900, from config)
-    - `receiver`: string (Recipient Solana address)
-    - `token`: string (e.g., "USDC")
-    - `amount`: number (Withdrawal amount)
-    - `withdrawNonce`: string (From API)
-    - `timestamp`: string (Unix ms timestamp)
-  - **Hashing/Encoding (Assumptions based on Registration Gist & API fields):**
-    - Hash `brokerId` using `solabi::keccak::v256` -> `B256`.
-    - Hash `token` string using `solabi::keccak::v256` -> `B256`.
-    - Convert `receiver` pubkey string to its 32 bytes -> `B256`.
-    - Create `WithdrawalMessage` struct using `create_withdrawal_message`.
-    - ABI-encode the struct using `solabi::encode`.
-    - Calculate the Keccak256 hash of the encoded bytes using `solabi::keccak::v256` -> `B256`.
-  - **Signing (Assumption based on Registration Gist):**
-    - Get the byte slice from the final hash: `message_hash.0`.
-    - Encode this _byte slice_ using a `TextEncoder` equivalent (e.g., `hash_hex.as_bytes()`).
-    - Call the `sign_solana_message` utility (from `src/solana/signing.rs`) with these TextEncoder-bytes and the user's keypair.
-  - **Return:** The original message components (as needed by the `POST /v1/withdraw_request` API body) and the hex-encoded signature.
-  - **Documentation:** Clearly document the assumptions made about ABI encoding order/types and the `TextEncoder` step.
-- **Implement `register_solana_account` (within `src/rest/client.rs`):**
-  - **(Implementation TODO - Based on provided example)**
-  - **Check Registration Status:**
-    - Call `GET /v1/public/wallet_registered` to check if the wallet is already registered.
-  - **Get Registration Nonce:**
-    - Call `GET /v1/registration_nonce` to get a unique nonce for registration.
-  - **Message Fields (Confirmed by API Docs):**
-    - `brokerId`: string (from config)
-    - `chainId`: integer (Solana chain ID, e.g., 900900900, from config)
-    - `chainType`: string ("SOL")
-    - `timestamp`: string (Unix ms timestamp)
-    - `registrationNonce`: string (From API)
-  - **Hashing/Encoding (Based on Example):**
-    - Hash `brokerId` using `solabi::keccak::v256` -> `B256`.
-    - Create `RegistrationMessage` struct using `create_registration_message`.
-    - ABI-encode the struct using `solabi::encode`.
-    - Calculate the Keccak256 hash of the encoded bytes using `solabi::keccak::v256` -> `B256`.
-  - **Signing (Based on Example):**
-    - Get the byte slice from the final hash: `message_hash.0`.
-    - Encode this _byte slice_ using UTF-8 bytes.
-    - Call the `sign_solana_message` utility with these bytes and the user's keypair.
-  - **Submit Registration:**
-    - Call `POST /v1/register_account` with the message, signature, and user address.
-    - Return the account ID from the response.
-  - **Documentation:** Add clear instructions that users need to create their API keys through their broker's website after registration.
+- Implement `register_solana_account` (within `src/rest/client.rs`): (COMPLETED)
+  - Check Registration Status: (COMPLETED)
+  - Get Registration Nonce: (COMPLETED)
+  - Message Fields (Confirmed by API Docs): (COMPLETED)
+  - Hashing/Encoding (Based on Example): (COMPLETED)
+  - Signing (Based on Example): (COMPLETED)
+  - Submit Registration: (COMPLETED)
+  - Return the account ID from the response. (COMPLETED)
+  - Documentation: Add clear instructions that users need to create their API keys through their broker's website after registration. (COMPLETED - via code comments)
 
 ## 7. Detailed Implementation & Testing (NEXT STEPS)
 
-This section outlines the detailed implementation steps for each major function, incorporating API calls, message signing, and testing.
+### 7.1 Account Registration (`src/rest/client.rs`) (COMPLETED)
 
-### 7.1 Account Registration (`src/rest/client.rs`)
-
-- **Objective:** Implement the full flow for registering a Solana account with Orderly via the REST API.
-- **Steps:**
-  1.  **Add API Types:** Define necessary request/response structs for:
-      - `GET /v1/public/wallet_registered` (Check status)
-      - `GET /v1/registration_nonce` (Get nonce)
-      - `POST /v1/register_account` (Submit registration)
-  2.  **Implement `register_solana_account` method in `OrderlyService`:**
-      - Takes necessary parameters (e.g., `SolanaConfig`, `Keypair`).
-      - **Check Registration:** Call `GET /v1/public/wallet_registered`. If already registered, potentially return the existing account ID or a specific status.
-      - **Get Nonce:** Call `GET /v1/registration_nonce` to obtain a fresh `registrationNonce`.
-      - **Prepare Message:**
-        - Get current `timestamp`.
-        - Use `create_registration_message` from `src/eth/abi.rs` to construct the `RegistrationMessage`.
-        - ABI-encode the message using `solabi::encode`.
-        - Hash the encoded message using `solabi::keccak::v256`.
-      - **Sign Message:**
-        - Use the `sign_solana_message` utility (from `src/solana/signing.rs`) with the message hash and the user's `Keypair` to get the signature.
-      - **Submit Registration:**
-        - Call `POST /v1/register_account` with the required parameters (message fields, signature, user address).
-        - Parse the response to extract the `accountId`.
-      - **Return:** The `accountId` upon successful registration, or an `OrderlyError`.
-- **Testing:**
-  - Add unit tests for the registration message creation and signing logic (if not already covered by `abi.rs` tests).
-  - Add integration tests (potentially using a mock server or against the testnet) to verify the full API flow.
+- Objective: Implement the full flow for registering a Solana account with Orderly via the REST API. (COMPLETED)
+- Steps: (COMPLETED)
+  1.  Add API Types: (COMPLETED)
+  2.  Implement `register_solana_account` method in `OrderlyService`: (COMPLETED)
+      - Check Registration (COMPLETED)
+      - Get Nonce (COMPLETED)
+      - Prepare Message (COMPLETED)
+      - Sign Message (COMPLETED)
+      - Submit Registration (COMPLETED)
+      - Return (COMPLETED)
+- Testing: (COMPLETED)
+  - Unit tests for registration message creation and signing logic (COMPLETED)
+  - Integration tests (using mock server) (COMPLETED)
 
 ### 7.2 Solana Deposit (`src/solana/client.rs`)
 

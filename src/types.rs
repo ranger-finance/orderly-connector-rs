@@ -135,6 +135,9 @@ pub enum OrderlyTimeInForce {
 ///   - Must be unique among open orders
 ///   - New orders with duplicate client_order_id are accepted only after previous one completes
 ///
+/// * `order_tag` (Optional): A user-defined tag for the order.
+///   Reference: https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
+///
 /// # Fields
 ///
 /// * `symbol` - The trading pair symbol (e.g., "PERP_ETH_USDC")
@@ -1444,3 +1447,71 @@ pub struct OrderbookSnapshotData {
 
 /// Type alias for the REST orderbook snapshot response.
 pub type GetOrderbookSnapshotResponse = SuccessResponse<OrderbookSnapshotData>;
+
+// Response for GET /v1/public/wallet_registered
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WalletRegisteredResponse {
+    pub success: bool,
+    pub status: String,
+    pub data: Option<WalletRegisteredData>, // Data might be null if not registered
+    pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WalletRegisteredData {
+    pub is_registered: bool,
+    // Add other fields if the API returns more info
+}
+
+// Response for GET /v1/registration_nonce
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegistrationNonceResponse {
+    pub success: bool,
+    pub status: String,
+    pub data: RegistrationNonceData,
+    pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegistrationNonceData {
+    #[serde(rename = "registrationNonce")]
+    pub registration_nonce: String,
+}
+
+// Request body for POST /v1/register_account
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegisterAccountRequest<'a> {
+    pub message: RegisterAccountMessage<'a>,
+    pub signature: &'a str,
+    #[serde(rename = "userAddress")]
+    pub user_address: &'a str, // Solana address string
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegisterAccountMessage<'a> {
+    #[serde(rename = "brokerId")]
+    pub broker_id: &'a str,
+    #[serde(rename = "chainId")]
+    pub chain_id: u64,
+    #[serde(rename = "chainType")]
+    pub chain_type: &'a str, // Should be "SOL"
+    pub timestamp: u64,
+    #[serde(rename = "registrationNonce")]
+    pub registration_nonce: &'a str,
+}
+
+// Response for POST /v1/register_account
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegisterAccountResponse {
+    pub success: bool,
+    pub status: String,
+    pub data: RegisterAccountData,
+    pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegisterAccountData {
+    #[serde(rename = "accountId")]
+    pub account_id: String,
+    // Add other fields if the API returns more info
+}

@@ -43,6 +43,7 @@ uuid = { version="1.6.1", features = ["v4"] }
 ##########
 solana-client = "=1.16.13"
 solana-sdk = "=1.16.13"
+spl-memo = "3.0.1"
 
 ##########
 
@@ -54,6 +55,7 @@ solabi = "0.2.0"
 [dev-dependencies]
 dotenv = "0.15" # Added here for tests and examples
 env_logger = "0.11" # For initializing logger in examples/tests
-mockito = "1.2" # For mocking HTTP requests in tests
+mockito = "1.4.0"
 tokio-test = "0.4"
 hex-literal = "0.3" # For ABI tests
+solana-sdk = "1.16.13" # For keypair generation in tests

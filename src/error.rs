@@ -141,9 +141,21 @@ pub enum OrderlyError {
     #[error("Validation error: {0}")]
     ValidationError(String),
 
+    /// Indicates the wallet is already registered.
+    #[error("Wallet already registered: {0}")]
+    RegistrationNotRequired(String),
+
+    /// Represents a general API error during a specific operation (like registration).
+    #[error("API Operation Error: {0}")]
+    ApiError(String),
+
     /// Represents missing credentials errors.
     #[error("Missing credentials")]
     MissingCredentials,
+
+    /// Represents errors during message signing.
+    #[error("Signing error: {0}")]
+    SigningError(String),
 }
 
 impl From<bs58::decode::Error> for OrderlyError {
