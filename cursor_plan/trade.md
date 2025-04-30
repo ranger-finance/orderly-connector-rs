@@ -9,18 +9,45 @@
   - ~~Extract all external Program IDs (Endpoint, SendLib, Treasury, etc.).~~ **(DONE)**
   - ~~Determine source/value of LayerZero Destination EID (`dst_eid`).~~ **(DONE - Hardcoded 30109)**
 - **Clarify with Orderly Specs/Docs:**
-  - ~~Is Orderly Account ID (`[u8; 32]`) needed for on-chain `DepositParams`, and how to get it?~~ **(CONFIRMED - Needed. SDK function requires it as input.)**
-  - Find exact EIP 712 domain & type definitions for `Withdraw` message signing. **(TODO - BLOCKER for Withdrawal)**
+  - ~~Is Orderly Account ID (`[u8; 32]`) needed for on-chain `DepositParams`, and how to get it?~~ **(CONFIRMED - Needed as `[u8; 32]` on-chain. SDK function requires it as input, likely hex string.)**
+  - ~~Find exact EIP 712 domain & type definitions for `Withdraw` message signing.~~ **(RESOLVED - Blocker Removed. Details found in [Wallet Auth Docs](https://orderly.network/docs/build-on-omnichain/user-flows/wallet-authentication#message-types). `abi.rs` needs update.)**
+    - **Domain:** `name: "Orderly"`, `version: "1"`, `chainId` (Settlement Layer), `verifyingContract`.
+    - **Type `Withdraw`:** Fields are `brokerIdHash (string)`, `chainId (uint256)`, `receiver (address)`, `token (string)`, `amount (uint256)`, `timestamp (uint64)`, `withdrawNonce (uint64)`.
+    - **Note:** API requires `receiver` as `bytes32` for Solana pubkey in the signed message data. `abi.rs` needs to use `String` for `brokerId`/`token`, `U64` (or correct `U256` conversion) for `timestamp`/`nonce`, and keep `B256` for `receiver`.
   - ~~Find exact EIP 712 domain & type definitions for `AddOrderlyKey` message signing.~~ **(REMOVED - Not needed. API keys are created through broker's website)**
 - **Points Requiring Caution/Confirmation During Implementation:**
-  - **Empty PDA Seeds:** Confirm the unusual empty seeds (`[]`) for some LayerZero PDAs are correct and handled appropriately. **(TODO)**
-  - **`dst_eid` Flexibility:** Confirm if `LAYERZERO_SOLANA_MAINNET_EID` (30109) needs to be configurable for testnets. **(TODO)**
-  - **Orderly Account ID Format:** Confirm hex string is the standard input format. **(TODO)**
+  - **~~Empty PDA Seeds:~~** ~~Confirm the unusual empty seeds (`[]`) for some LayerZero PDAs are correct and handled appropriately.~~ **(RESOLVED - Likely misinterpretation. Standard LayerZero PDA seeds are used in JS SDK and should be used here.)**
+  - **`dst_eid` Flexibility:** Confirm if `LAYERZERO_SOLANA_MAINNET_EID` (30109) needs to be configurable for testnets. **(TODO - Clarified: 30109 confirmed for mainnet, question remains about testnet config needs.)**
+  - **Orderly Account ID Format:** Confirm hex string is the standard input format. **(CONFIRMED - On-chain format is `[u8; 32]`. Hex string is the likely standard input format for the SDK function.)**
 - **Implementation TODOs:**
-  - Implement all PDA derivation functions in Rust (`pdas.rs`), noting empty seeds.
+  - Implement all PDA derivation functions in Rust (`pdas.rs`), noting empty seeds. **(Update: Implement using standard LayerZero PDA seeds).**
   - Implement `prepare_solana_deposit_tx` using derived info (including loading IDL via `include_str!`).
-  - Implement EIP 712 preparation functions (`prepare_withdrawal_message`) based on **ASSUMPTIONS** if official specs remain unavailable (document assumptions clearly).
+  - Implement EIP 712 preparation functions (`prepare_withdrawal_message`) based on **ASSUMPTIONS** if official specs remain unavailable (document assumptions clearly). **(Update: Implement based on resolved EIP 712 spec. Update `WithdrawalMessage` struct in `abi.rs` first. - DONE)**
 - Implement account registration functionality (`register_solana_account`) following the provided example. (COMPLETED)
+
+**Implementation TODOs:**
+
+- **Implement PDA derivation functions in Rust (`src/solana/pdas.rs`):**
+  - Use standard Solana `find_program_address`.
+  - Implement functions based on JS `helper.ts` (lines ~152-207 and others):
+    - `get_vault_authority_pda(vault_program_id)`: Seed `[b"vault_authority"]`
+    - `get_broker_pda(vault_program_id, broker_hash: &[u8; 32])`: Seed `[b"allowed_broker", broker_hash]`
+    - `get_token_pda(vault_program_id, token_hash: &[u8; 32])`: Seed `[b"allowed_token", token_hash]`
+    - `get_oapp_config_pda(vault_program_id)`: Seed `[b"OAppConfig"]`
+    - `get_peer_pda(vault_program_id, dst_eid: u32)`: Seed `[b"Peer", &dst_eid.to_be_bytes()]` (Note: Uses Vault Program ID per JS)
+    - `get_enforced_options_pda(vault_program_id, dst_eid: u32)`: Seed `[b"Options", &dst_eid.to_be_bytes(), b""]` (Note: Uses Vault Program ID & empty options bytes per JS)
+    - _(Add other required PDAs like `SendLib`, `Nonce`, `ExecutorConfig`, etc., based on full JS analysis)_
+- **Implement `prepare_solana_deposit_tx` in `src/solana/client.rs`:**
+  - Use the PDA functions above.
+  - Load Vault IDL via `include_str!`.
+  - Construct `DepositParams` and `remaining_accounts` based on JS `helper.ts` (lines ~493 onwards).
+- **Implement `prepare_withdrawal_message` in `src/rest/client.rs` (or signing module):**
+  - Fetch nonce from API.
+  - Use `create_withdrawal_message` from `abi.rs`.
+  - ABI-encode and hash the message.
+  - Sign using Solana keypair.
+- **Implement `request_withdrawal` in `src/rest/client.rs`:**
+  - Call the withdrawal API endpoint with the prepared message and signature.
 
 ---
 
@@ -312,14 +339,14 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 - **Objective:** Finalize and test the function that prepares the Solana transaction for depositing USDC into the Orderly Vault.
 - **Steps:**
   1.  **Review/Refine `prepare_solana_deposit_tx`:** Ensure it correctly:
-      - Takes necessary parameters (`SolanaConfig`, user `Keypair`, deposit `amount`, `orderly_account_id` as hex string).
+      - Takes necessary parameters (`SolanaConfig`, user `Keypair`, deposit `amount`, `orderly_account_id` as hex string). **(Confirmed: Accept hex string for account ID).**
       - Derives all required PDAs using functions from `src/solana/pdas.rs`.
       - Loads the Vault IDL using `include_str!`.
       - Constructs the `DepositParams` struct.
       - Assembles the `remaining_accounts` correctly based on LayerZero requirements.
       - Builds the Anchor instruction using `program.request()`.
       - Creates and partially signs the Solana `Transaction`.
-  2.  **Handle `orderly_account_id`:** Ensure the hex string input is correctly converted to `[u8; 32]`.
+  2.  **Handle `orderly_account_id`:** Ensure the hex string input is correctly validated and converted to `[u8; 32]`. **(Confirmed)**
 - **Testing:**
   - Add unit tests verifying the construction of the `DepositParams` and `remaining_accounts`.
   - Add tests simulating the transaction creation process (mocking RPC calls if necessary).
@@ -337,7 +364,8 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
       - **Fetch Nonce:** Call `GET /v1/withdraw_nonce` to obtain the `withdrawNonce`.
       - **Prepare Message:**
         - Get current `timestamp`.
-        - Use `create_withdrawal_message` from `src/eth/abi.rs` to construct the `WithdrawalMessage`.
+        - **Update `WithdrawalMessage` struct in `src/eth/abi.rs` according to resolved EIP 712 spec.**
+        - Use `create_withdrawal_message` from `src/eth/abi.rs` to construct the `WithdrawalMessage`. (Ensure this function reflects the updated struct).
         - ABI-encode the message using `solabi::encode`.
         - Hash the encoded message using `solabi::keccak::v256`.
       - **Sign Message:**
@@ -353,7 +381,7 @@ This document outlines the steps to implement Solana deposit, withdrawal, and ke
 
 ## 8. Final Steps
 
-- **Address Remaining TODOs:** Confirm details about empty PDA seeds, EID configurability, and account ID format.
+- **Address Remaining TODOs:** Confirm details about empty PDA seeds, EID configurability, and account ID format. **(Update: Confirm EID configurability for testnets).**
 - **Refine Error Handling:** Ensure robust error handling throughout all flows.
 - **Add Examples:** Create clear examples demonstrating how to use the registration, deposit, and withdrawal functions.
 - **Update Documentation:** Finalize all documentation for the SDK.
