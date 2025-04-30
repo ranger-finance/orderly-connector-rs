@@ -105,7 +105,6 @@ pub async fn prepare_withdrawal_message(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rest::client::{Credentials, OrderlyService};
     use solana_sdk::signer::keypair::Keypair;
 
     #[test]

@@ -9,7 +9,6 @@ use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
     message::{v0::Message as MessageV0, VersionedMessage},
-    pubkey::Pubkey,
     signature::{Keypair, Signer},
     system_program,
     transaction::VersionedTransaction,
