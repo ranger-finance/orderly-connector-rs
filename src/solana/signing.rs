@@ -1,4 +1,9 @@
 use crate::error::{OrderlyError, Result};
+use crate::eth::abi::create_withdrawal_message;
+use crate::rest::client::{Credentials, OrderlyService};
+use crate::solana::types::SolanaConfig;
+use solabi::encode::encode;
+use solabi::keccak::v256;
 use solana_sdk::{
     hash::Hash, // For Hash::new_unique()
     instruction::{AccountMeta, Instruction},
@@ -62,11 +67,47 @@ pub fn sign_solana_message(message_bytes: &[u8], keypair: &Keypair) -> Result<St
     Ok(signature.to_string())
 }
 
+/// Prepares and signs a withdrawal message for Orderly Network (Solana).
+///
+/// This fetches the withdrawal nonce, builds the message, hashes and signs it.
+/// Returns the WithdrawalMessage and the base58 signature string.
+pub async fn prepare_withdrawal_message(
+    service: &OrderlyService,
+    creds: &Credentials<'_>,
+    solana_config: &SolanaConfig,
+    user_keypair: &Keypair,
+    receiver_addr: &str,
+    token: &str,
+    amount: u64,
+) -> crate::error::Result<(crate::eth::abi::WithdrawalMessage, String)> {
+    // 1. Fetch nonce
+    let withdraw_nonce = service.get_withdraw_nonce(creds).await?;
+    // 2. Get timestamp
+    let timestamp = crate::auth::get_timestamp_ms()?;
+    // 3. Create message
+    let message = create_withdrawal_message(
+        &solana_config.broker_id,
+        solana_config.orderly_solana_chain_id,
+        receiver_addr,
+        token,
+        amount,
+        withdraw_nonce,
+        timestamp,
+    )?;
+    // 4. Encode and hash
+    let encoded = encode(&message);
+    let hash = v256(&encoded);
+    // 5. Sign
+    let signature = sign_solana_message(&hash, user_keypair)?;
+    Ok((message, signature))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rest::client::{Credentials, OrderlyService};
     use solana_sdk::signer::keypair::Keypair;
-
+    
     #[test]
     fn test_sign_solana_message_basic() {
         let keypair = Keypair::new();

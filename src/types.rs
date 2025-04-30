@@ -1515,3 +1515,17 @@ pub struct RegisterAccountData {
     pub account_id: String,
     // Add other fields if the API returns more info
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WithdrawNonceResponse {
+    pub success: bool,
+    pub status: String,
+    pub data: WithdrawNonceData,
+    pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WithdrawNonceData {
+    #[serde(rename = "withdrawNonce")]
+    pub withdraw_nonce: String,
+}

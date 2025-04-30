@@ -3,20 +3,19 @@
 use crate::error::OrderlyError;
 use crate::solana::pdas::*;
 use crate::solana::types::SolanaConfig;
+use anchor_lang::{InstructionData, ToAccountMetas};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
-    message::v0::Message as MessageV0,
+    message::{v0::Message as MessageV0, VersionedMessage},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
     system_program,
     transaction::VersionedTransaction,
 };
 use solana_vault_cpi::{
-    accounts::Deposit,
-    instruction::Deposit as DepositIx,
-    types::{DepositParams, OAppSendParams},
+    accounts::Deposit, instruction::Deposit as DepositIx, DepositParams, OAppSendParams,
 };
 use spl_associated_token_account::get_associated_token_address;
 
@@ -131,13 +130,22 @@ pub fn prepare_solana_deposit_tx(
         AccountMeta::new_readonly(price_feed, false),
     ];
 
-    let ix = DepositIx {
+    // Construct Instruction manually for CPI
+    let ix_data = DepositIx {
         _deposit_params: deposit_params,
         _oapp_params: oapp_params,
-    }
-    .accounts(accounts)
-    .remaining_accounts(remaining_accounts)
-    .instruction();
+    };
+
+    // Convert the accounts struct + remaining accounts into AccountMeta list
+    let mut account_metas = accounts.to_account_metas(None);
+    account_metas.extend(remaining_accounts); // Add the manually specified remaining accounts
+
+    // Construct the final Instruction
+    let ix = Instruction {
+        program_id: solana_vault_cpi::ID, // Use the Program ID from the CPI crate
+        accounts: account_metas,
+        data: ix_data.data(), // Serialize the instruction data
+    };
 
     let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(400_000);
     let blockhash = rpc_client
@@ -152,7 +160,7 @@ pub fn prepare_solana_deposit_tx(
         blockhash,
     )
     .map_err(|e| OrderlyError::NetworkError(e.to_string()))?;
-    let tx = VersionedTransaction::try_new(message, &[user_keypair])
+    let tx = VersionedTransaction::try_new(VersionedMessage::V0(message), &[user_keypair])
         .map_err(|e| OrderlyError::NetworkError(e.to_string()))?;
 
     Ok(tx)

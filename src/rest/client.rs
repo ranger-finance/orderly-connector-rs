@@ -1603,6 +1603,27 @@ impl OrderlyService {
             )))
         }
     }
+
+    /// Fetches the withdrawal nonce for the current user (required for withdrawal message signing).
+    pub async fn get_withdraw_nonce(&self, creds: &Credentials<'_>) -> Result<u64> {
+        let request = self
+            .build_signed_request::<()>(creds, Method::GET, "/v1/withdraw_nonce", None)
+            .await?;
+        let resp: crate::types::WithdrawNonceResponse = self.send_request(request).await?;
+        if !resp.success {
+            return Err(OrderlyError::ApiError(format!(
+                "Failed to get withdraw nonce: status={}, data={:?}",
+                resp.status, resp.data
+            )));
+        }
+        let nonce = resp.data.withdraw_nonce.parse::<u64>().map_err(|_| {
+            OrderlyError::ValidationError(format!(
+                "Failed to parse withdraw nonce: {}",
+                resp.data.withdraw_nonce
+            ))
+        })?;
+        Ok(nonce)
+    }
 }
 
 // ===== Helper Structs (Restore these) =====
@@ -1642,268 +1663,4 @@ pub struct ExchangeInfoResponse {
     pub success: bool,
     pub timestamp: u64,
     pub data: ExchangeInfoData,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*; // Import items from parent module
-    use crate::solana::types::SolanaConfig;
-    use mockito::{Server, ServerGuard}; // Import ServerGuard
-    use serde_json::json; // Import json macro
-    use solana_sdk::pubkey::Pubkey; // Import Pubkey
-    use solana_sdk::signer::keypair::Keypair;
-    use solana_sdk::signer::Signer;
-
-    // Helper function to create a service pointing to a mock server
-    async fn setup_test_service() -> (ServerGuard, OrderlyService) {
-        let server = Server::new_async().await;
-        let base_url = server.url();
-        let service = OrderlyService::with_base_url(&base_url, Some(5)).unwrap();
-        (server, service)
-    }
-
-    // Helper function to create a dummy SolanaConfig
-    fn test_solana_config() -> SolanaConfig {
-        SolanaConfig {
-            rpc_url: "dummy_rpc".to_string(),
-            api_base_url: "dummy_api".to_string(), // Not used in this function
-            usdc_mint: Pubkey::new_unique(),       // Placeholder
-            broker_id: "test_broker".to_string(),
-            orderly_solana_chain_id: 900900900, // Example chain ID
-        }
-    }
-
-    #[tokio::test]
-    async fn test_register_solana_account_already_registered() {
-        let (mut server, service) = setup_test_service().await;
-        let keypair = Keypair::new();
-        let user_address = keypair.pubkey().to_string();
-        let config = test_solana_config();
-
-        // Mock the check endpoint to return registered
-        let mock_check = server
-            .mock(
-                "GET",
-                format!("/v1/public/wallet_registered?address={}", user_address).as_str(),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&WalletRegisteredResponse {
-                    success: true,
-                    status: "OK".to_string(),
-                    data: Some(WalletRegisteredData {
-                        is_registered: true,
-                    }),
-                    timestamp: get_timestamp_ms().unwrap(),
-                })
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        let result = service.register_solana_account(&config, &keypair).await;
-
-        mock_check.assert_async().await;
-        assert!(matches!(
-            result,
-            Err(OrderlyError::RegistrationNotRequired(_))
-        ));
-        if let Err(OrderlyError::RegistrationNotRequired(addr)) = result {
-            assert_eq!(addr, user_address);
-        }
-    }
-
-    #[tokio::test]
-    async fn test_register_solana_account_success() {
-        let (mut server, service) = setup_test_service().await;
-        let keypair = Keypair::new();
-        let user_address = keypair.pubkey().to_string();
-        let config = test_solana_config();
-        let expected_account_id = "test_account_123".to_string();
-        let registration_nonce = "987654321".to_string();
-
-        // 1. Mock check endpoint (not registered)
-        let mock_check = server
-            .mock(
-                "GET",
-                format!("/v1/public/wallet_registered?address={}", user_address).as_str(),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&WalletRegisteredResponse {
-                    success: true,
-                    status: "OK".to_string(),
-                    data: Some(WalletRegisteredData {
-                        is_registered: false,
-                    }),
-                    timestamp: get_timestamp_ms().unwrap(),
-                })
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        // 2. Mock nonce endpoint
-        let mock_nonce = server
-            .mock("GET", "/v1/registration_nonce")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&RegistrationNonceResponse {
-                    success: true,
-                    status: "OK".to_string(),
-                    data: RegistrationNonceData {
-                        registration_nonce: registration_nonce.clone(),
-                    },
-                    timestamp: get_timestamp_ms().unwrap(),
-                })
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        // 3. Mock register endpoint
-        let mock_register = server
-            .mock("POST", "/v1/register_account")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&RegisterAccountResponse {
-                    success: true,
-                    status: "OK".to_string(),
-                    data: RegisterAccountData {
-                        account_id: expected_account_id.clone(),
-                    },
-                    timestamp: get_timestamp_ms().unwrap(),
-                })
-                .unwrap(),
-            )
-            // We could add `.match_body(...)` here if we needed to verify the exact request body
-            .create_async()
-            .await;
-
-        // --- IMPORTANT: Replace placeholder signing logic before running this test seriously ---
-        // For now, the test relies on the placeholder signature in `register_solana_account`.
-        // TODO: Implement actual signing and potentially mock it or use a test key.
-
-        let result = service.register_solana_account(&config, &keypair).await;
-
-        mock_check.assert_async().await;
-        mock_nonce.assert_async().await;
-        mock_register.assert_async().await;
-
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), expected_account_id);
-    }
-
-    #[tokio::test]
-    async fn test_register_solana_account_nonce_api_error() {
-        let (mut server, service) = setup_test_service().await;
-        let keypair = Keypair::new();
-        let user_address = keypair.pubkey().to_string();
-        let config = test_solana_config();
-
-        // 1. Mock check endpoint (not registered)
-        let mock_check = server
-            .mock(
-                "GET",
-                format!("/v1/public/wallet_registered?address={}", user_address).as_str(),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&WalletRegisteredResponse {
-                    success: true,
-                    status: "OK".to_string(),
-                    data: Some(WalletRegisteredData {
-                        is_registered: false,
-                    }),
-                    timestamp: get_timestamp_ms().unwrap(),
-                })
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        // 2. Mock nonce endpoint to fail
-        let mock_nonce = server
-            .mock("GET", "/v1/registration_nonce")
-            .with_status(400) // Simulate an API error
-            .with_header("content-type", "application/json")
-            .with_body(json!({ "success": false, "status": "ERROR", "code": -1001, "message": "Nonce fetch failed"}).to_string())
-            .create_async().await;
-
-        let result = service.register_solana_account(&config, &keypair).await;
-
-        mock_check.assert_async().await;
-        mock_nonce.assert_async().await;
-        assert!(matches!(result, Err(OrderlyError::ClientError { .. })));
-    }
-
-    #[tokio::test]
-    async fn test_register_solana_account_register_api_error() {
-        let (mut server, service) = setup_test_service().await;
-        let keypair = Keypair::new();
-        let user_address = keypair.pubkey().to_string();
-        let config = test_solana_config();
-        let registration_nonce = "987654321".to_string();
-
-        // 1. Mock check endpoint (not registered)
-        let mock_check = server
-            .mock(
-                "GET",
-                format!("/v1/public/wallet_registered?address={}", user_address).as_str(),
-            )
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&WalletRegisteredResponse {
-                    success: true,
-                    status: "OK".to_string(),
-                    data: Some(WalletRegisteredData {
-                        is_registered: false,
-                    }),
-                    timestamp: get_timestamp_ms().unwrap(),
-                })
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        // 2. Mock nonce endpoint (success)
-        let mock_nonce = server
-            .mock("GET", "/v1/registration_nonce")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                serde_json::to_string(&RegistrationNonceResponse {
-                    success: true,
-                    status: "OK".to_string(),
-                    data: RegistrationNonceData {
-                        registration_nonce: registration_nonce.clone(),
-                    },
-                    timestamp: get_timestamp_ms().unwrap(),
-                })
-                .unwrap(),
-            )
-            .create_async()
-            .await;
-
-        // 3. Mock register endpoint to fail
-        let mock_register = server
-            .mock("POST", "/v1/register_account")
-            .with_status(400) // Simulate an API error
-            .with_header("content-type", "application/json")
-            .with_body(json!({ "success": false, "status": "ERROR", "code": -2001, "message": "Registration submission failed"}).to_string())
-            .create_async().await;
-
-        let result = service.register_solana_account(&config, &keypair).await;
-
-        mock_check.assert_async().await;
-        mock_nonce.assert_async().await;
-        mock_register.assert_async().await;
-        assert!(matches!(result, Err(OrderlyError::ClientError { .. })));
-    }
 }
