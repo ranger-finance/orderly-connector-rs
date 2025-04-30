@@ -18,14 +18,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Determine if testnet or mainnet
-    let is_testnet = env::var("ORDERLY_TESTNET")
-        .unwrap_or_else(|_| "true".to_string())
-        .parse::<bool>()
-        .unwrap_or(true);
+    let is_testnet = false;
 
+    let ws_url = if is_testnet {
+        format!("wss://testnet-ws-evm.orderly.org/ws/stream/{}", account_id)
+    } else {
+        format!("wss://ws-evm.orderly.org/ws/stream/{}", account_id)
+    };
     println!("Starting Orderly Network Index Prices Monitor");
     println!("Account ID: {}", account_id);
     println!("Testnet: {}", is_testnet);
+    println!("WebSocket URL: {}", ws_url);
 
     // Create message handler to process incoming messages
     let message_handler = Arc::new(|msg: String| {
