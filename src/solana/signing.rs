@@ -107,7 +107,7 @@ mod tests {
     use super::*;
     use crate::rest::client::{Credentials, OrderlyService};
     use solana_sdk::signer::keypair::Keypair;
-    
+
     #[test]
     fn test_sign_solana_message_basic() {
         let keypair = Keypair::new();

@@ -912,11 +912,72 @@ impl WebsocketPublicClient {
         self.subscribe(topic_msg).await
     }
 
-    /// Unsubscribes from index prices.
+    /// Subscribe to real-time mark prices for all symbols.
+    ///
+    /// Mark prices are used for calculating unrealized PnL and determining liquidation prices.
+    /// Updates are pushed every 1 second.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure of the subscription.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use orderly_connector_rs::websocket::WebsocketPublicClient;
+    /// use std::sync::Arc;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let message_handler = Arc::new(|msg: String| {
+    ///         println!("Received: {}", msg);
+    ///     });
+    ///
+    ///     let close_handler = Arc::new(|| {
+    ///         println!("Connection closed");
+    ///     });
+    ///
+    ///     let client = WebsocketPublicClient::connect(
+    ///         "your_account_id".to_string(),
+    ///         true, // is_testnet
+    ///         message_handler,
+    ///         close_handler,
+    ///     ).await.expect("Failed to connect");
+    ///
+    ///     // Subscribe to mark prices
+    ///     client.subscribe_mark_prices().await.expect("Failed to subscribe");
+    ///
+    ///     // Keep the connection alive
+    ///     tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+    ///     client.stop().await;
+    /// }
+    /// ```
+    pub async fn subscribe_mark_prices(&self) -> Result<()> {
+        let topic_msg = json!({
+            "id": uuid::Uuid::new_v4().to_string(),
+            "event": "subscribe",
+            "topic": "markprices"
+        });
+
+        self.subscribe(topic_msg).await
+    }
+
+    /// Unsubscribes from mark prices.
     ///
     /// # Returns
     ///
     /// A `Result` indicating success or failure of the unsubscription.
+    pub async fn unsubscribe_mark_prices(&self) -> Result<()> {
+        let topic_msg = json!({
+            "id": uuid::Uuid::new_v4().to_string(),
+            "event": "unsubscribe",
+            "topic": "markprices"
+        });
+
+        self.unsubscribe(topic_msg).await
+    }
+
+    /// Unsubscribes from index prices.
     pub async fn unsubscribe_index_prices(&self) -> Result<()> {
         let topic_msg = json!({
             "id": uuid::Uuid::new_v4().to_string(),
