@@ -45,6 +45,8 @@ solana-client = "=1.16.13"
 solana-sdk = "=1.16.13"
 spl-memo = "3.0.1"
 
+solana_vault_cpi = { path = "crates/cpis/solana_vault" }
+
 ##########
 
 ##########
