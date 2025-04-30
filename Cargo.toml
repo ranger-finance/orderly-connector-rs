@@ -43,8 +43,8 @@ uuid = { version="1.6.1", features = ["v4"] }
 ##########
 solana-client = "=1.16.13"
 solana-sdk = "=1.16.13"
-spl-memo = "3.0.1"
-
+spl-associated-token-account = "=2.2.0"
+spl-token = "=4.0.0"
 solana_vault_cpi = { path = "crates/cpis/solana_vault" }
 
 ##########
