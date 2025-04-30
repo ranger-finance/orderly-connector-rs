@@ -166,4 +166,70 @@ async fn test_get_asset_history() {
     }
 }
 
+#[tokio::test]
+#[ignore] // Ignored by default
+async fn test_get_account_info() {
+    let (client, creds) = setup_client();
+    let result = client.get_account_info(&creds).await;
+    println!("Account Info Result: {:#?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to get account info: {:?}",
+        result.err()
+    );
+    let info = result.unwrap();
+    assert!(info.success, "API response indicates failure");
+    // Basic structure checks
+    assert!(
+        !info.data.account_id.is_empty(),
+        "Account ID should not be empty"
+    );
+}
+
+#[tokio::test]
+#[ignore] // Ignored by default
+async fn test_get_holding() {
+    let (client, creds) = setup_client();
+    let result = client.get_holding(&creds).await;
+    println!("Holdings Result: {:#?}", result);
+    assert!(result.is_ok(), "Failed to get holdings: {:?}", result.err());
+    let holdings = result.unwrap();
+    assert!(holdings.success, "API response indicates failure");
+    // There should be at least one holding
+    assert!(
+        !holdings.data.holding.is_empty(),
+        "Holdings list should not be empty"
+    );
+    // Check structure of first holding
+    let first = &holdings.data.holding[0];
+    assert!(!first.token.is_empty(), "Token should not be empty");
+    assert!(first.holding >= 0.0);
+    assert!(first.frozen >= 0.0);
+}
+
+#[tokio::test]
+#[ignore] // Ignored by default
+async fn test_get_positions() {
+    let (client, creds) = setup_client();
+    let result = client.get_positions(&creds).await;
+    println!("Positions Result: {:#?}", result);
+    assert!(
+        result.is_ok(),
+        "Failed to get positions: {:?}",
+        result.err()
+    );
+    let positions = result.unwrap();
+    assert!(positions.success, "API response indicates failure");
+    // If there is at least one position, check structure
+    if let Some(first) = positions.data.rows.get(0) {
+        assert!(!first.symbol.is_empty(), "Symbol should not be empty");
+        // Position qty, cost, mark price, etc. should be present
+        let _ = first.position_qty;
+        let _ = first.cost_position;
+        let _ = first.mark_price;
+        let _ = first.unsettled_pnl;
+        let _ = first.average_open_price;
+    }
+}
+
 // Add more tests for other private endpoints: get_account_info, positions, etc.
