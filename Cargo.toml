@@ -44,8 +44,8 @@ sha3 = "0.10"  # Required for v256 function
 ##########
 solana-client = "=1.16.13"
 solana-sdk = "=1.16.13"
-spl-associated-token-account = "=1.1.3"
-spl-token = "=3.5.0"
+spl-associated-token-account = { version = "=2.2.0", features = ["no-entrypoint"] }
+spl-token = { version = "=4.0.0", features = ["no-entrypoint"] }
 spl-memo = "=3.0.1"
 anchor-lang = "0.28.0"
 solana_vault_cpi = "0.1.0"
