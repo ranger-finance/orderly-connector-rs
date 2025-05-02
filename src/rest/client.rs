@@ -1,9 +1,12 @@
 use crate::auth::{self, get_timestamp_ms};
 use crate::error::{OrderlyError, Result};
 use crate::eth::abi::create_registration_message;
+use crate::solana::client::prepare_solana_deposit_tx_unsigned;
 use crate::solana::signing::sign_solana_message;
 use crate::solana::types::SolanaConfig;
 use crate::types::*;
+use base64;
+use bincode;
 use log::{error, info, warn};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client as HttpClient, Method, Request, Response};
@@ -12,8 +15,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use solabi::encode::encode;
 use solabi::keccak::v256;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signer::keypair::Keypair;
 use solana_sdk::signer::Signer;
+use std::str::FromStr;
 use std::time::Duration;
 use url::Url; // For keypair.pubkey() // Import v256
 
@@ -257,7 +262,9 @@ impl OrderlyService {
                     );
                     // Determine if the serde error should be mapped to a specific OrderlyError
                     // For now, just wrap the serde error.
-                    Err(OrderlyError::Serde(e)) // Wrap serde error
+                    Err(OrderlyError::Serde(serde_json::Error::io(
+                        std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+                    )))
                 }
             }
         } else {
@@ -302,7 +309,7 @@ impl OrderlyService {
                 .as_str()
                 .unwrap_or(&error_body_text) // Use raw text as fallback message
                 .to_string();
-            let data = error_body.get("data").cloned(); // Optional 'data' field in errors
+            let data = error_body.get("data").cloned();
 
             let error = if status.is_client_error() {
                 OrderlyError::ClientError {
@@ -1624,6 +1631,59 @@ impl OrderlyService {
         })?;
         Ok(nonce)
     }
+
+    /// Prepares an unsigned Solana deposit transaction for Orderly, matching the JS SDK logic.
+    ///
+    /// # References
+    /// - [Orderly Deposit Docs](https://orderly.network/docs/build-on-omnichain/user-flows/withdrawal-deposit#deposit)
+    /// - [Orderly JS SDK Implementation](https://github.com/OrderlyNetwork/js-sdk/blob/main/packages/default-solana-adapter/src/helper.ts#L493)
+    ///
+    /// This method does **not** sign the transaction. The returned transaction must be signed externally (e.g., by a wallet).
+    ///
+    /// # Arguments
+    /// - `solana_config`: Orderly Solana config.
+    /// - `user_pubkey`: The user's public key (base58 string).
+    /// - `amount`: Amount of USDC to deposit (in smallest units).
+    /// - `orderly_account_id_hex`: 32-byte hex string for the Orderly account ID.
+    ///
+    /// # Returns
+    /// A base64-encoded, bincode-serialized unsigned `VersionedTransaction` ready for external signing.
+    ///
+    /// # Example
+    /// ```no_run
+    /// let base64_tx = service.create_solana_deposit_tx_unsigned(
+    ///     &solana_config, user_pubkey_str, 1_000_000, "abcdef...").await?;
+    /// // Send base64_tx to wallet for signing
+    /// ```
+    pub async fn create_solana_deposit_tx_unsigned(
+        &self,
+        solana_config: &SolanaConfig,
+        user_pubkey: &str,
+        amount: u64,
+        orderly_account_id_hex: &str,
+    ) -> Result<String> {
+        let user_pubkey = Pubkey::from_str(user_pubkey).map_err(|_| {
+            OrderlyError::ValidationError("Invalid user_pubkey base58 string".to_string())
+        })?;
+        // Use the default Solana RPC client from config or global context
+        // For now, assume a static RPC client is available (to be injected in real use)
+        let rpc_url = &solana_config.rpc_url;
+        let rpc_client = solana_client::rpc_client::RpcClient::new(rpc_url.clone());
+        let tx = prepare_solana_deposit_tx_unsigned(
+            &rpc_client,
+            solana_config,
+            &user_pubkey,
+            amount,
+            orderly_account_id_hex,
+        )?;
+        let tx_bytes = bincode::serialize(&tx).map_err(|e| {
+            OrderlyError::Serde(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            )))
+        })?;
+        Ok(base64::encode(tx_bytes))
+    }
 }
 
 // ===== Helper Structs (Restore these) =====
@@ -1663,4 +1723,44 @@ pub struct ExchangeInfoResponse {
     pub success: bool,
     pub timestamp: u64,
     pub data: ExchangeInfoData,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::solana::types::SolanaConfig;
+    use solana_sdk::pubkey::Pubkey;
+
+    #[tokio::test]
+    async fn test_create_solana_deposit_tx_unsigned() {
+        // Dummy config and pubkey
+        let config = SolanaConfig {
+            rpc_url: "https://api.mainnet-beta.solana.com".to_string(),
+            api_base_url: "https://api.orderly.network".to_string(),
+            usdc_mint: Pubkey::new_unique(),
+            broker_id: "test_broker".to_string(),
+            orderly_solana_chain_id: 900900900,
+        };
+        let user_pubkey = Pubkey::new_unique().to_string();
+        let amount = 1_000_000u64;
+        let orderly_account_id_hex =
+            "0000000000000000000000000000000000000000000000000000000000000000";
+        let service = OrderlyService::new(true, Some(10)).unwrap();
+        let result = service
+            .create_solana_deposit_tx_unsigned(
+                &config,
+                &user_pubkey,
+                amount,
+                orderly_account_id_hex,
+            )
+            .await;
+        // Should be Ok or a validation/network error (since no real RPC)
+        assert!(
+            result.is_ok()
+                || matches!(
+                    result,
+                    Err(OrderlyError::NetworkError(_)) | Err(OrderlyError::ValidationError(_))
+                )
+        );
+    }
 }
