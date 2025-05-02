@@ -6,6 +6,8 @@ use crate::solana::signing::sign_solana_message;
 use crate::solana::types::SolanaConfig;
 use crate::types::*;
 use base64;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use bincode;
 use log::{error, info, warn};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -1682,7 +1684,7 @@ impl OrderlyService {
                 e.to_string(),
             )))
         })?;
-        Ok(base64::encode(tx_bytes))
+        Ok(STANDARD.encode(tx_bytes))
     }
 }
 
