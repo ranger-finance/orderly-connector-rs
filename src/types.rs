@@ -329,6 +329,7 @@ pub struct AlgoOrderDetails {
     pub algo_status: Option<String>,
     pub algo_type: Option<String>,
     pub fee_asset: Option<String>,
+    #[serde(default, deserialize_with = "de_string_or_bool")]
     pub is_triggered: Option<String>,
     pub order_tag: Option<String>,
     pub root_algo_order_status: Option<String>,
@@ -1617,4 +1618,36 @@ where
         }
     }
     deserializer.deserialize_option(StringOrNumber)
+}
+
+fn de_string_or_bool<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct StringOrBool;
+    impl<'de> serde::de::Visitor<'de> for StringOrBool {
+        type Value = Option<String>;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("string or bool or null")
+        }
+        fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            Ok(Some(v.to_string()))
+        }
+        fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<Self::Value, E> {
+            Ok(Some(v.to_string()))
+        }
+        fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_some<D2>(self, deserializer: D2) -> Result<Self::Value, D2::Error>
+        where
+            D2: serde::de::Deserializer<'de>,
+        {
+            deserializer.deserialize_any(StringOrBool)
+        }
+    }
+    deserializer.deserialize_option(StringOrBool)
 }
