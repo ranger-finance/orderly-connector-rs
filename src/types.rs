@@ -1561,38 +1561,37 @@ pub struct GetTradeResponse {
 }
 
 // Custom deserializer for client_order_id (string or number)
-use serde::de::{self, Deserializer};
 pub fn de_client_order_id_opt<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
-    D: Deserializer<'de>,
+    D: serde::de::Deserializer<'de>,
 {
     struct StringOrNumber;
-    impl<'de> de::Visitor<'de> for StringOrNumber {
+    impl<'de> serde::de::Visitor<'de> for StringOrNumber {
         type Value = Option<String>;
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
             formatter.write_str("string or number or null")
         }
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> {
+        fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
             Ok(Some(v.to_string()))
         }
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E> {
+        fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Self::Value, E> {
             Ok(Some(v))
         }
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> {
+        fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
             Ok(Some(v.to_string()))
         }
-        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E> {
+        fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<Self::Value, E> {
             Ok(Some(v.to_string()))
         }
-        fn visit_none<E>(self) -> Result<Self::Value, E> {
+        fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
             Ok(None)
         }
-        fn visit_unit<E>(self) -> Result<Self::Value, E> {
+        fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
             Ok(None)
         }
         fn visit_some<D2>(self, deserializer: D2) -> Result<Self::Value, D2::Error>
         where
-            D2: Deserializer<'de>,
+            D2: serde::de::Deserializer<'de>,
         {
             deserializer.deserialize_any(StringOrNumber)
         }
