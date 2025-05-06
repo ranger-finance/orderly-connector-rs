@@ -1403,7 +1403,7 @@ impl OrderlyService {
     ///     });
     ///
     ///     match service.get_algo_orders(&creds, params).await {
-    ///         Ok(response) => println!("Algo orders: {:?}", response.data),
+    ///         Ok(response) => println!("Algo orders: {:?}", response.data.rows),
     ///         Err(e) => println!("Failed to get algo orders: {}", e),
     ///     }
     ///
@@ -1414,7 +1414,7 @@ impl OrderlyService {
         &self,
         creds: &Credentials<'_>,
         params: GetAlgoOrdersParams,
-    ) -> Result<SuccessResponse<GetAlgoOrdersResponse>, OrderlyError> {
+    ) -> Result<SuccessResponse<GetAlgoOrdersResponseData>, OrderlyError> {
         // Convert params to query string if present
         let path = {
             let query_string = serde_qs::to_string(&params)
@@ -1426,14 +1426,72 @@ impl OrderlyService {
             }
         };
 
+        // Log the params for debugging
+        println!("[Orderly] get_algo_orders params: {:?}", params);
+        println!("[Orderly] get_algo_orders path: {}", path);
+
         // Build signed request
         let request = self
             .build_signed_request::<()>(creds, Method::GET, &path, None)
             .await?;
 
-        // Send request and handle response
-        self.send_request::<SuccessResponse<GetAlgoOrdersResponse>>(request)
-            .await
+        // Send request and log the raw response before deserialization
+        let response = self.http_client.execute(request).await?;
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body_text = response.text().await?;
+        println!(
+            "[Orderly] get_algo_orders raw response (status: {}): {}",
+            status, body_text
+        );
+
+        if status.is_success() {
+            match serde_json::from_str::<SuccessResponse<GetAlgoOrdersResponseData>>(&body_text) {
+                Ok(parsed_body) => Ok(parsed_body),
+                Err(e) => {
+                    log::error!(
+                        "[Orderly] Failed to parse get_algo_orders response body (Status: {}). Error: {}. Body: {}",
+                        status,
+                        e,
+                        body_text
+                    );
+                    Err(OrderlyError::Serde(serde_json::Error::io(
+                        std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+                    )))
+                }
+            }
+        } else {
+            log::error!(
+                "[Orderly] get_algo_orders error response (status: {}): {}",
+                status,
+                body_text
+            );
+            let error_body: serde_json::Value = serde_json::from_str(&body_text)
+                .unwrap_or_else(|_| serde_json::json!({"raw": body_text}));
+            let code = error_body["code"].as_i64().unwrap_or(0);
+            let message = error_body["message"]
+                .as_str()
+                .unwrap_or(&body_text)
+                .to_string();
+            let data = error_body.get("data").cloned();
+            let error = if status.is_client_error() {
+                OrderlyError::ClientError {
+                    status,
+                    code,
+                    message,
+                    data,
+                    header: headers,
+                }
+            } else {
+                OrderlyError::ServerError {
+                    status,
+                    code,
+                    message,
+                    header: headers,
+                }
+            };
+            Err(error)
+        }
     }
 
     /// Gets the orderbook snapshot for a symbol.

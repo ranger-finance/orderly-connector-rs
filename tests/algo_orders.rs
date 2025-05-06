@@ -258,8 +258,8 @@ async fn test_get_algo_orders() {
     let response = result.unwrap();
     let orderly_connector_rs::types::SuccessResponse { success, data, .. } = response;
     assert!(success);
-    let rows = &data.data.rows;
-    let meta = &data.data.meta;
+    let rows = &data.rows;
+    let meta = &data.meta;
 
     assert_eq!(rows.len(), 1);
     assert_eq!(meta.total, 1);

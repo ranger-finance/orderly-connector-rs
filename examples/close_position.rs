@@ -122,9 +122,7 @@ async fn monitor_order(
                     OrderStatus::PartialFilled => {
                         info!(
                             "Order {} partially filled: {} / {}",
-                            order_id,
-                            resp.data.order.executed_quantity,
-                            resp.data.order.quantity
+                            order_id, resp.data.order.executed_quantity, resp.data.order.quantity
                         );
                     }
                     _ => {}
