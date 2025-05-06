@@ -2,7 +2,7 @@ use env_logger;
 use mockito;
 use orderly_connector_rs::{
     rest::{client::Credentials, OrderlyService},
-    types::{AlgoOrderType, CreateAlgoOrderRequest, GetAlgoOrdersParams, Side},
+    types::{AlgoOrderType, CreateAlgoOrderRequest, GetAlgoOrdersParams, OrderStatus, Side},
 };
 use serde_json::json;
 
@@ -133,7 +133,7 @@ async fn test_cancel_algo_order() {
     let order = response.data;
 
     assert_eq!(order.algo_order_id, 123456);
-    assert_eq!(order.status.to_string(), "Cancelled");
+    assert_eq!(order.algo_status.unwrap(), OrderStatus::Cancelled);
 }
 
 #[tokio::test]
@@ -193,7 +193,7 @@ async fn test_cancel_algo_order_by_client_id() {
     let order = response.data;
 
     assert_eq!(order.client_order_id.unwrap(), "my_stop_loss_1");
-    assert_eq!(order.status.to_string(), "Cancelled");
+    assert_eq!(order.algo_status.unwrap(), OrderStatus::Cancelled);
 }
 
 #[tokio::test]

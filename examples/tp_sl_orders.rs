@@ -266,7 +266,7 @@ async fn monitor_algo_order(
                     .iter()
                     .find(|o| o.algo_order_id == algo_order_id)
                 {
-                    let status = order.status.clone();
+                    let status = order.algo_status.clone().unwrap();
                     info!("Algo order {} status: {}", algo_order_id, status);
 
                     match status {

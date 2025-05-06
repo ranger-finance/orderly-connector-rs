@@ -318,10 +318,9 @@ pub struct AlgoOrderDetails {
     pub order_type: AlgoOrderType,
     pub side: Side,
     pub quantity: f64,
-    pub trigger_price: f64,
+    pub trigger_price: Option<f64>,
     pub limit_price: Option<f64>,
     pub trailing_delta: Option<f64>,
-    pub status: OrderStatus,
     pub reduce_only: bool,
     pub triggered_order_id: Option<String>,
     pub created_time: i64,
@@ -329,7 +328,7 @@ pub struct AlgoOrderDetails {
     pub parent_algo_order_id: u64,
     pub root_algo_order_id: u64,
     // Additional fields from API response
-    pub algo_status: Option<String>,
+    pub algo_status: Option<OrderStatus>,
     pub fee_asset: Option<String>,
     #[serde(default, deserialize_with = "de_string_or_bool")]
     pub is_triggered: Option<String>,
