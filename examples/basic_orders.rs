@@ -187,9 +187,7 @@ async fn monitor_order(
                     OrderStatus::PartialFilled => {
                         info!(
                             "Order {} partially filled: {} / {}",
-                            order_id,
-                            resp.data.order.executed_quantity.unwrap_or(0.0),
-                            resp.data.order.order_quantity.unwrap_or(0.0)
+                            order_id, resp.data.order.executed_quantity, resp.data.order.quantity
                         );
                     }
                     _ => {}
@@ -262,12 +260,8 @@ async fn main() -> Result<(), OrderlyError> {
             info!("Found {} open orders:", resp.data.rows.len());
             for order in resp.data.rows {
                 info!(
-                    "Order {}: {:?} {:?} {} @ {}",
-                    order.order_id,
-                    order.side,
-                    order.order_type,
-                    order.order_quantity.unwrap_or(0.0),
-                    order.order_price.unwrap_or(0.0)
+                    "Order {}: {:?} {:?} {} @ {:?}",
+                    order.order_id, order.side, order.order_type, order.quantity, order.price
                 );
             }
         }

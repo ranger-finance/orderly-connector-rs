@@ -123,8 +123,8 @@ async fn monitor_order(
                         info!(
                             "Order {} partially filled: {} / {}",
                             order_id,
-                            resp.data.order.executed_quantity.unwrap_or(0.0),
-                            resp.data.order.order_quantity.unwrap_or(0.0)
+                            resp.data.order.executed_quantity,
+                            resp.data.order.quantity
                         );
                     }
                     _ => {}
