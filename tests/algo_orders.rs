@@ -2,7 +2,7 @@ use env_logger;
 use mockito;
 use orderly_connector_rs::{
     rest::{client::Credentials, OrderlyService},
-    types::{AlgoOrderType, CreateAlgoOrderRequest, GetAlgoOrdersParams, Side},
+    types::{AlgoOrderType, CreateAlgoOrderRequest, GetAlgoOrdersParams, OrderStatus, Side},
 };
 use serde_json::json;
 
@@ -74,7 +74,7 @@ async fn test_create_algo_order() {
     assert!(response.success);
     let order = response.data;
 
-    assert_eq!(order.algo_order_id, "123456");
+    assert_eq!(order.algo_order_id, 123456);
     assert_eq!(order.symbol, "PERP_BTC_USDC");
     assert_eq!(order.order_type, AlgoOrderType::StopMarket);
     assert_eq!(order.side, Side::Sell);
@@ -132,8 +132,8 @@ async fn test_cancel_algo_order() {
     assert!(response.success);
     let order = response.data;
 
-    assert_eq!(order.algo_order_id, "123456");
-    assert_eq!(order.status.to_string(), "Cancelled");
+    assert_eq!(order.algo_order_id, 123456);
+    assert_eq!(order.algo_status.unwrap(), OrderStatus::Cancelled);
 }
 
 #[tokio::test]
@@ -193,7 +193,7 @@ async fn test_cancel_algo_order_by_client_id() {
     let order = response.data;
 
     assert_eq!(order.client_order_id.unwrap(), "my_stop_loss_1");
-    assert_eq!(order.status.to_string(), "Cancelled");
+    assert_eq!(order.algo_status.unwrap(), OrderStatus::Cancelled);
 }
 
 #[tokio::test]
@@ -256,16 +256,18 @@ async fn test_get_algo_orders() {
     assert!(result.is_ok());
 
     let response = result.unwrap();
-    assert!(response.success);
-    let data = response.data;
+    let orderly_connector_rs::types::SuccessResponse { success, data, .. } = response;
+    assert!(success);
+    let rows = &data.rows;
+    let meta = &data.meta;
 
-    assert_eq!(data.rows.len(), 1);
-    assert_eq!(data.total, 1);
-    assert_eq!(data.current_page, 1);
-    assert_eq!(data.page_size, 10);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(meta.total, 1);
+    assert_eq!(meta.current_page, 1);
+    assert_eq!(meta.records_per_page, 10);
 
-    let order = &data.rows[0];
-    assert_eq!(order.algo_order_id, "123456");
+    let order = &rows[0];
+    assert_eq!(order.algo_order_id, 123456);
     assert_eq!(order.symbol, "PERP_BTC_USDC");
     assert_eq!(order.order_type, AlgoOrderType::StopMarket);
     assert_eq!(order.side, Side::Sell);

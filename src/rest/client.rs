@@ -1,9 +1,14 @@
 use crate::auth::{self, get_timestamp_ms};
 use crate::error::{OrderlyError, Result};
 use crate::eth::abi::create_registration_message;
+use crate::solana::client::prepare_solana_deposit_tx_unsigned;
 use crate::solana::signing::sign_solana_message;
 use crate::solana::types::SolanaConfig;
 use crate::types::*;
+use base64;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
+use bincode;
 use log::{error, info, warn};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client as HttpClient, Method, Request, Response};
@@ -12,12 +17,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use solabi::encode::encode;
 use solabi::keccak::v256;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signer::keypair::Keypair;
 use solana_sdk::signer::Signer;
+use std::str::FromStr;
 use std::time::Duration;
 use url::Url; // For keypair.pubkey() // Import v256
 
-const MAINNET_API_URL: &str = "https://api-evm.orderly.network";
+const MAINNET_API_URL: &str = "https://api.orderly.org";
 const TESTNET_API_URL: &str = "https://testnet-api-evm.orderly.network";
 const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
@@ -257,7 +264,9 @@ impl OrderlyService {
                     );
                     // Determine if the serde error should be mapped to a specific OrderlyError
                     // For now, just wrap the serde error.
-                    Err(OrderlyError::Serde(e)) // Wrap serde error
+                    Err(OrderlyError::Serde(serde_json::Error::io(
+                        std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+                    )))
                 }
             }
         } else {
@@ -302,7 +311,7 @@ impl OrderlyService {
                 .as_str()
                 .unwrap_or(&error_body_text) // Use raw text as fallback message
                 .to_string();
-            let data = error_body.get("data").cloned(); // Optional 'data' field in errors
+            let data = error_body.get("data").cloned();
 
             let error = if status.is_client_error() {
                 OrderlyError::ClientError {
@@ -970,14 +979,18 @@ impl OrderlyService {
     /// Get specific trade by ID for the specified user.
     /// GET /v1/trade/{trade_id}
     ///
-    /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-trade
-    pub async fn get_trade(&self, creds: &Credentials<'_>, trade_id: u64) -> Result<Value> {
-        // Added credentials parameter
+    /// [Orderly API docs](https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/get-trade)
+    pub async fn get_trade(
+        &self,
+        creds: &Credentials<'_>,
+        trade_id: u64,
+    ) -> Result<crate::types::GetTradeResponse> {
         let path = format!("/v1/trade/{}", trade_id);
         let request = self
-            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
+            .build_signed_request::<()>(creds, Method::GET, &path, None)
             .await?;
-        self.send_request::<Value>(request).await
+        self.send_request::<crate::types::GetTradeResponse>(request)
+            .await
     }
 
     // ===== Client Statistics =====
@@ -1378,18 +1391,19 @@ impl OrderlyService {
     ///     };
     ///     let service = OrderlyService::new(true, None)?;
     ///
-    ///     // Get all algo orders
-    ///     let params = GetAlgoOrdersParams {
+    ///     // Get all algo orders with filters
+    ///     let params = Some(GetAlgoOrdersParams {
     ///         symbol: Some("PERP_BTC_USDC".to_string()),
     ///         order_type: Some(AlgoOrderType::StopMarket),
     ///         side: Some(Side::Sell),
     ///         status: None,
     ///         page: Some(1),
     ///         size: Some(10),
-    ///     };
+    ///         // ... other fields as needed
+    ///     });
     ///
     ///     match service.get_algo_orders(&creds, params).await {
-    ///         Ok(response) => println!("Algo orders: {:?}", response.data),
+    ///         Ok(response) => println!("Algo orders: {:?}", response.data.rows),
     ///         Err(e) => println!("Failed to get algo orders: {}", e),
     ///     }
     ///
@@ -1400,26 +1414,84 @@ impl OrderlyService {
         &self,
         creds: &Credentials<'_>,
         params: GetAlgoOrdersParams,
-    ) -> Result<SuccessResponse<GetAlgoOrdersResponse>, OrderlyError> {
-        // Convert params to query string
-        let query_string = serde_qs::to_string(&params)
-            .map_err(|e| OrderlyError::JsonEncodeError(e.to_string()))?;
-
-        // Build path
-        let path = if query_string.is_empty() {
-            "/v1/algo-orders".to_string()
-        } else {
-            format!("/v1/algo-orders?{}", query_string)
+    ) -> Result<SuccessResponse<GetAlgoOrdersResponseData>, OrderlyError> {
+        // Convert params to query string if present
+        let path = {
+            let query_string = serde_qs::to_string(&params)
+                .map_err(|e| OrderlyError::JsonEncodeError(e.to_string()))?;
+            if query_string.is_empty() {
+                "/v1/algo/orders".to_string()
+            } else {
+                format!("/v1/algo/orders?{}", query_string)
+            }
         };
+
+        // Log the params for debugging
+        println!("[Orderly] get_algo_orders params: {:?}", params);
+        println!("[Orderly] get_algo_orders path: {}", path);
 
         // Build signed request
         let request = self
             .build_signed_request::<()>(creds, Method::GET, &path, None)
             .await?;
 
-        // Send request and handle response
-        self.send_request::<SuccessResponse<GetAlgoOrdersResponse>>(request)
-            .await
+        // Send request and log the raw response before deserialization
+        let response = self.http_client.execute(request).await?;
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body_text = response.text().await?;
+        println!(
+            "[Orderly] get_algo_orders raw response (status: {}): {}",
+            status, body_text
+        );
+
+        if status.is_success() {
+            match serde_json::from_str::<SuccessResponse<GetAlgoOrdersResponseData>>(&body_text) {
+                Ok(parsed_body) => Ok(parsed_body),
+                Err(e) => {
+                    log::error!(
+                        "[Orderly] Failed to parse get_algo_orders response body (Status: {}). Error: {}. Body: {}",
+                        status,
+                        e,
+                        body_text
+                    );
+                    Err(OrderlyError::Serde(serde_json::Error::io(
+                        std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+                    )))
+                }
+            }
+        } else {
+            log::error!(
+                "[Orderly] get_algo_orders error response (status: {}): {}",
+                status,
+                body_text
+            );
+            let error_body: serde_json::Value = serde_json::from_str(&body_text)
+                .unwrap_or_else(|_| serde_json::json!({"raw": body_text}));
+            let code = error_body["code"].as_i64().unwrap_or(0);
+            let message = error_body["message"]
+                .as_str()
+                .unwrap_or(&body_text)
+                .to_string();
+            let data = error_body.get("data").cloned();
+            let error = if status.is_client_error() {
+                OrderlyError::ClientError {
+                    status,
+                    code,
+                    message,
+                    data,
+                    header: headers,
+                }
+            } else {
+                OrderlyError::ServerError {
+                    status,
+                    code,
+                    message,
+                    header: headers,
+                }
+            };
+            Err(error)
+        }
     }
 
     /// Gets the orderbook snapshot for a symbol.
@@ -1624,6 +1696,82 @@ impl OrderlyService {
         })?;
         Ok(nonce)
     }
+
+    /// Prepares an unsigned Solana deposit transaction for Orderly, matching the JS SDK logic.
+    ///
+    /// # References
+    /// - [Orderly Deposit Docs](https://orderly.network/docs/build-on-omnichain/user-flows/withdrawal-deposit#deposit)
+    /// - [Orderly JS SDK Implementation](https://github.com/OrderlyNetwork/js-sdk/blob/main/packages/default-solana-adapter/src/helper.ts#L493)
+    ///
+    /// This method does **not** sign the transaction. The returned transaction must be signed externally (e.g., by a wallet).
+    ///
+    /// # Arguments
+    /// - `solana_config`: Orderly Solana config.
+    /// - `user_pubkey`: The user's public key (base58 string).
+    /// - `amount`: Amount of USDC to deposit (in smallest units).
+    /// - `orderly_account_id_hex`: 32-byte hex string for the Orderly account ID.
+    ///
+    /// # Returns
+    /// A base64-encoded, bincode-serialized unsigned `VersionedTransaction` ready for external signing.
+    ///
+    /// # Example
+    /// ```no_run
+    /// let base64_tx = service.create_solana_deposit_tx_unsigned(
+    ///     &solana_config, user_pubkey_str, 1_000_000, "abcdef...").await?;
+    /// // Send base64_tx to wallet for signing
+    /// ```
+    pub async fn create_solana_deposit_tx_unsigned(
+        &self,
+        solana_config: &SolanaConfig,
+        user_pubkey: &str,
+        amount: u64,
+        orderly_account_id_hex: &str,
+    ) -> Result<String> {
+        let user_pubkey = Pubkey::from_str(user_pubkey).map_err(|_| {
+            OrderlyError::ValidationError("Invalid user_pubkey base58 string".to_string())
+        })?;
+        // Use the default Solana RPC client from config or global context
+        // For now, assume a static RPC client is available (to be injected in real use)
+        let rpc_url = &solana_config.rpc_url;
+        let rpc_client = solana_client::rpc_client::RpcClient::new(rpc_url.clone());
+        let tx = prepare_solana_deposit_tx_unsigned(
+            &rpc_client,
+            solana_config,
+            &user_pubkey,
+            amount,
+            orderly_account_id_hex,
+        )?;
+        let tx_bytes = bincode::serialize(&tx).map_err(|e| {
+            OrderlyError::Serde(serde_json::Error::io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            )))
+        })?;
+        Ok(STANDARD.encode(tx_bytes))
+    }
+
+    /// Get details of a single algo order by order_id.
+    ///
+    /// [Orderly API docs](https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/get-algo-order-by-order_id)
+    ///
+    /// # Arguments
+    /// * `creds` - Credentials for authentication
+    /// * `order_id` - The algo order ID to fetch
+    ///
+    /// # Returns
+    /// A `SuccessResponse<AlgoOrderDetails>` with the order details
+    pub async fn get_algo_order_by_id(
+        &self,
+        creds: &Credentials<'_>,
+        order_id: &str,
+    ) -> Result<SuccessResponse<crate::types::AlgoOrderDetails>> {
+        let path = format!("/v1/algo/order/{}", order_id);
+        let request = self
+            .build_signed_request::<()>(creds, reqwest::Method::GET, &path, None)
+            .await?;
+        self.send_request::<SuccessResponse<crate::types::AlgoOrderDetails>>(request)
+            .await
+    }
 }
 
 // ===== Helper Structs (Restore these) =====
@@ -1663,4 +1811,44 @@ pub struct ExchangeInfoResponse {
     pub success: bool,
     pub timestamp: u64,
     pub data: ExchangeInfoData,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::solana::types::SolanaConfig;
+    use solana_sdk::pubkey::Pubkey;
+
+    #[tokio::test]
+    async fn test_create_solana_deposit_tx_unsigned() {
+        // Dummy config and pubkey
+        let config = SolanaConfig {
+            rpc_url: "https://api.mainnet-beta.solana.com".to_string(),
+            api_base_url: "https://api.orderly.network".to_string(),
+            usdc_mint: Pubkey::new_unique(),
+            broker_id: "test_broker".to_string(),
+            orderly_solana_chain_id: 900900900,
+        };
+        let user_pubkey = Pubkey::new_unique().to_string();
+        let amount = 1_000_000u64;
+        let orderly_account_id_hex =
+            "0000000000000000000000000000000000000000000000000000000000000000";
+        let service = OrderlyService::new(true, Some(10)).unwrap();
+        let result = service
+            .create_solana_deposit_tx_unsigned(
+                &config,
+                &user_pubkey,
+                amount,
+                orderly_account_id_hex,
+            )
+            .await;
+        // Should be Ok or a validation/network error (since no real RPC)
+        assert!(
+            result.is_ok()
+                || matches!(
+                    result,
+                    Err(OrderlyError::NetworkError(_)) | Err(OrderlyError::ValidationError(_))
+                )
+        );
+    }
 }

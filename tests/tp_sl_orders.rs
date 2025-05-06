@@ -81,8 +81,8 @@ async fn test_take_profit_order() {
     assert!(result.is_ok());
     let response = result.unwrap();
     assert!(response.success);
-    assert_eq!(response.data.algo_order_id, "tp_123");
-    assert_eq!(response.data.status, OrderStatus::New);
+    assert_eq!(response.data.algo_order_id, 123);
+    assert_eq!(response.data.algo_status.unwrap(), OrderStatus::New);
 }
 
 #[tokio::test]
@@ -151,8 +151,8 @@ async fn test_stop_loss_order() {
     assert!(result.is_ok());
     let response = result.unwrap();
     assert!(response.success);
-    assert_eq!(response.data.algo_order_id, "sl_123");
-    assert_eq!(response.data.status, OrderStatus::New);
+    assert_eq!(response.data.algo_order_id, 123);
+    assert_eq!(response.data.algo_status.unwrap(), OrderStatus::New);
 }
 
 #[tokio::test]
@@ -222,6 +222,6 @@ async fn test_trailing_stop_order() {
     assert!(result.is_ok());
     let response = result.unwrap();
     assert!(response.success);
-    assert_eq!(response.data.algo_order_id, "ts_123");
-    assert_eq!(response.data.status, OrderStatus::New);
+    assert_eq!(response.data.algo_order_id, 123);
+    assert_eq!(response.data.algo_status.unwrap(), OrderStatus::New);
 }

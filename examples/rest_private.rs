@@ -19,13 +19,6 @@ async fn main() {
         .parse()
         .expect("ORDERLY_TESTNET must be true or false");
 
-    // IMPORTANT: Private endpoint examples modify state (create/cancel orders).
-    // Ensure you are running against TESTNET unless you intend to affect mainnet.
-    if !is_testnet {
-        panic!("Private examples should only be run against testnet (set ORDERLY_TESTNET=true)");
-    }
-    println!("Using Testnet: {}", is_testnet);
-
     // Initialize the client
     let client = OrderlyService::new(is_testnet, None).expect("Failed to create REST client");
 

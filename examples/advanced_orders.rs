@@ -82,7 +82,7 @@ async fn place_stop_loss(
                     "Stop-loss order placed successfully: ID {}",
                     resp.data.algo_order_id
                 );
-                Ok(resp.data.algo_order_id)
+                Ok(resp.data.algo_order_id.to_string())
             } else {
                 Err(OrderlyError::ValidationError(
                     "Order creation failed".into(),
@@ -132,7 +132,7 @@ async fn place_take_profit(
                     "Take-profit order placed successfully: ID {}",
                     resp.data.algo_order_id
                 );
-                Ok(resp.data.algo_order_id)
+                Ok(resp.data.algo_order_id.to_string())
             } else {
                 Err(OrderlyError::ValidationError(
                     "Order creation failed".into(),
@@ -181,7 +181,7 @@ async fn place_trailing_stop(
                     "Trailing stop order placed successfully: ID {}",
                     resp.data.algo_order_id
                 );
-                Ok(resp.data.algo_order_id)
+                Ok(resp.data.algo_order_id.to_string())
             } else {
                 Err(OrderlyError::ValidationError(
                     "Order creation failed".into(),
