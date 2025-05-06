@@ -80,6 +80,8 @@ pub enum AlgoOrderType {
     TakeProfitMarket,
     TakeProfitLimit,
     TrailingStop,
+    #[serde(rename = "POSITIONAL_TP_SL")]
+    PositionTpSl,
 }
 
 /// Represents the time in force for an order.
@@ -312,6 +314,7 @@ pub struct AlgoOrderDetails {
     pub algo_order_id: u64,
     pub client_order_id: Option<String>,
     pub symbol: String,
+    #[serde(rename = "algo_type")]
     pub order_type: AlgoOrderType,
     pub side: Side,
     pub quantity: f64,
@@ -327,7 +330,6 @@ pub struct AlgoOrderDetails {
     pub root_algo_order_id: u64,
     // Additional fields from API response
     pub algo_status: Option<String>,
-    pub algo_type: Option<String>,
     pub fee_asset: Option<String>,
     #[serde(default, deserialize_with = "de_string_or_bool")]
     pub is_triggered: Option<String>,
