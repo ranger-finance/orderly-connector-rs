@@ -27,10 +27,10 @@ async fn main() -> anyhow::Result<()> {
     println!("Fetching all algo orders...");
     let params = GetAlgoOrdersParams::default();
     let all_orders_resp = client.get_algo_orders(&creds, params).await?;
-    println!("All algo orders: {:#?}", all_orders_resp.data.rows);
+    println!("All algo orders: {:#?}", all_orders_resp.data.data.rows);
 
     // 2. If any exist, fetch details for the first algo_order_id
-    if let Some(first_order) = all_orders_resp.data.rows.first() {
+    if let Some(first_order) = all_orders_resp.data.data.rows.first() {
         let order_id = &first_order.algo_order_id;
         println!("\nFetching details for algo_order_id: {}", order_id);
         let order_detail_resp = client

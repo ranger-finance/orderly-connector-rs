@@ -262,6 +262,7 @@ async fn monitor_algo_order(
             Ok(resp) => {
                 if let Some(order) = resp
                     .data
+                    .data
                     .rows
                     .iter()
                     .find(|o| o.algo_order_id == algo_order_id)

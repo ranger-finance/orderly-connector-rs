@@ -256,15 +256,17 @@ async fn test_get_algo_orders() {
     assert!(result.is_ok());
 
     let response = result.unwrap();
-    assert!(response.success);
-    let data = response.data;
+    let orderly_connector_rs::types::SuccessResponse { success, data, .. } = response;
+    assert!(success);
+    let rows = &data.data.rows;
+    let meta = &data.data.meta;
 
-    assert_eq!(data.rows.len(), 1);
-    assert_eq!(data.total, 1);
-    assert_eq!(data.current_page, 1);
-    assert_eq!(data.page_size, 10);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(meta.total, 1);
+    assert_eq!(meta.current_page, 1);
+    assert_eq!(meta.records_per_page, 10);
 
-    let order = &data.rows[0];
+    let order = &rows[0];
     assert_eq!(order.algo_order_id, 123456);
     assert_eq!(order.symbol, "PERP_BTC_USDC");
     assert_eq!(order.order_type, AlgoOrderType::StopMarket);

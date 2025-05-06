@@ -345,14 +345,22 @@ pub struct AlgoOrderDetails {
     pub child_orders: Option<Vec<serde_json::Value>>, // Use Value for flexible child order structure
 }
 
-/// Response structure for a list of algorithmic orders
+/// Metadata for paginated responses (used in algo orders, etc.)
 #[derive(Debug, Clone, Deserialize)]
-pub struct GetAlgoOrdersResponse {
-    pub rows: Vec<AlgoOrderDetails>,
+pub struct AlgoOrdersMeta {
     pub total: u32,
+    pub records_per_page: u32,
     pub current_page: u32,
-    pub page_size: u32,
 }
+
+/// Response structure for a list of algorithmic orders (matches GET /v1/algo/orders)
+#[derive(Debug, Clone, Deserialize)]
+pub struct GetAlgoOrdersResponseData {
+    pub meta: AlgoOrdersMeta,
+    pub rows: Vec<AlgoOrderDetails>,
+}
+
+pub type GetAlgoOrdersResponse = SuccessResponse<GetAlgoOrdersResponseData>;
 
 /// Response data for a create order request.
 ///
