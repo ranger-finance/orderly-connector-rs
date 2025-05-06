@@ -309,7 +309,7 @@ pub struct Order {
 /// Response structure for algorithmic order details
 #[derive(Debug, Clone, Deserialize)]
 pub struct AlgoOrderDetails {
-    pub algo_order_id: String,
+    pub algo_order_id: u64,
     pub client_order_id: Option<String>,
     pub symbol: String,
     pub order_type: AlgoOrderType,
@@ -323,6 +323,24 @@ pub struct AlgoOrderDetails {
     pub triggered_order_id: Option<String>,
     pub created_time: i64,
     pub updated_time: i64,
+    pub parent_algo_order_id: u64,
+    pub root_algo_order_id: u64,
+    // Additional fields from API response
+    pub algo_status: Option<String>,
+    pub algo_type: Option<String>,
+    pub fee_asset: Option<String>,
+    pub is_triggered: Option<String>,
+    pub order_tag: Option<String>,
+    pub root_algo_order_status: Option<String>,
+    pub executed_quantity: Option<f64>,
+    pub total_executed_quantity: Option<f64>,
+    pub total_fee: Option<f64>,
+    pub trigger_price_type: Option<String>,
+    #[serde(rename = "type")]
+    pub type_field: Option<String>,
+    pub visible_quantity: Option<f64>,
+    pub realized_pnl: Option<f64>,
+    pub child_orders: Option<Vec<serde_json::Value>>, // Use Value for flexible child order structure
 }
 
 /// Response structure for a list of algorithmic orders

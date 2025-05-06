@@ -74,7 +74,7 @@ async fn test_create_algo_order() {
     assert!(response.success);
     let order = response.data;
 
-    assert_eq!(order.algo_order_id, "123456");
+    assert_eq!(order.algo_order_id, 123456);
     assert_eq!(order.symbol, "PERP_BTC_USDC");
     assert_eq!(order.order_type, AlgoOrderType::StopMarket);
     assert_eq!(order.side, Side::Sell);
@@ -132,7 +132,7 @@ async fn test_cancel_algo_order() {
     assert!(response.success);
     let order = response.data;
 
-    assert_eq!(order.algo_order_id, "123456");
+    assert_eq!(order.algo_order_id, 123456);
     assert_eq!(order.status.to_string(), "Cancelled");
 }
 
@@ -265,7 +265,7 @@ async fn test_get_algo_orders() {
     assert_eq!(data.page_size, 10);
 
     let order = &data.rows[0];
-    assert_eq!(order.algo_order_id, "123456");
+    assert_eq!(order.algo_order_id, 123456);
     assert_eq!(order.symbol, "PERP_BTC_USDC");
     assert_eq!(order.order_type, AlgoOrderType::StopMarket);
     assert_eq!(order.side, Side::Sell);

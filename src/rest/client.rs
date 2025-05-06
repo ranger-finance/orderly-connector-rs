@@ -1391,15 +1391,16 @@ impl OrderlyService {
     ///     };
     ///     let service = OrderlyService::new(true, None)?;
     ///
-    ///     // Get all algo orders
-    ///     let params = GetAlgoOrdersParams {
+    ///     // Get all algo orders with filters
+    ///     let params = Some(GetAlgoOrdersParams {
     ///         symbol: Some("PERP_BTC_USDC".to_string()),
     ///         order_type: Some(AlgoOrderType::StopMarket),
     ///         side: Some(Side::Sell),
     ///         status: None,
     ///         page: Some(1),
     ///         size: Some(10),
-    ///     };
+    ///         // ... other fields as needed
+    ///     });
     ///
     ///     match service.get_algo_orders(&creds, params).await {
     ///         Ok(response) => println!("Algo orders: {:?}", response.data),
@@ -1414,15 +1415,15 @@ impl OrderlyService {
         creds: &Credentials<'_>,
         params: GetAlgoOrdersParams,
     ) -> Result<SuccessResponse<GetAlgoOrdersResponse>, OrderlyError> {
-        // Convert params to query string
-        let query_string = serde_qs::to_string(&params)
-            .map_err(|e| OrderlyError::JsonEncodeError(e.to_string()))?;
-
-        // Build path
-        let path = if query_string.is_empty() {
-            "/v1/algo/orders".to_string()
-        } else {
-            format!("/v1/algo/orders?{}", query_string)
+        // Convert params to query string if present
+        let path = {
+            let query_string = serde_qs::to_string(&params)
+                .map_err(|e| OrderlyError::JsonEncodeError(e.to_string()))?;
+            if query_string.is_empty() {
+                "/v1/algo/orders".to_string()
+            } else {
+                format!("/v1/algo/orders?{}", query_string)
+            }
         };
 
         // Build signed request

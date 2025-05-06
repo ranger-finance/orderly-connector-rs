@@ -57,7 +57,7 @@ async fn place_take_profit_order(
     quantity: f64,
     trigger_price: f64,
     limit_price: Option<f64>,
-) -> Result<String, OrderlyError> {
+) -> Result<u64, OrderlyError> {
     info!(
         "Placing take profit order for {} {} at trigger price {}",
         quantity, symbol, trigger_price
@@ -110,7 +110,7 @@ async fn place_stop_loss_order(
     quantity: f64,
     trigger_price: f64,
     limit_price: Option<f64>,
-) -> Result<String, OrderlyError> {
+) -> Result<u64, OrderlyError> {
     info!(
         "Placing stop loss order for {} {} at trigger price {}",
         quantity, symbol, trigger_price
@@ -210,9 +210,7 @@ async fn monitor_order(
                     OrderStatus::PartialFilled => {
                         info!(
                             "Order {} partially filled: {} / {}",
-                            order_id,
-                            resp.data.order.executed_quantity,
-                            resp.data.order.quantity
+                            order_id, resp.data.order.executed_quantity, resp.data.order.quantity
                         );
                     }
                     _ => {}
@@ -235,7 +233,7 @@ async fn monitor_algo_order(
     client: &OrderlyService,
     creds: &Credentials<'_>,
     symbol: &str,
-    algo_order_id: &str,
+    algo_order_id: u64,
     timeout_secs: u64,
 ) -> Result<OrderStatus, OrderlyError> {
     info!(
@@ -371,16 +369,17 @@ async fn main() -> Result<(), OrderlyError> {
                 // Monitor both orders
                 loop {
                     let tp_status =
-                        monitor_algo_order(&client, &creds, symbol, &tp_order_id, 10).await?;
+                        monitor_algo_order(&client, &creds, symbol, tp_order_id, 10).await?;
                     let sl_status =
-                        monitor_algo_order(&client, &creds, symbol, &sl_order_id, 10).await?;
+                        monitor_algo_order(&client, &creds, symbol, sl_order_id, 10).await?;
 
                     match (tp_status, sl_status) {
                         (OrderStatus::Filled, _) => {
                             info!("Take profit order filled!");
                             // Cancel the stop loss order since take profit was hit
-                            if let Err(e) =
-                                client.cancel_algo_order(&creds, symbol, &sl_order_id).await
+                            if let Err(e) = client
+                                .cancel_algo_order(&creds, symbol, &sl_order_id.to_string())
+                                .await
                             {
                                 error!("Failed to cancel stop loss order: {}", e);
                             }
@@ -389,8 +388,9 @@ async fn main() -> Result<(), OrderlyError> {
                         (_, OrderStatus::Filled) => {
                             info!("Stop loss triggered!");
                             // Cancel the take profit order since stop loss was hit
-                            if let Err(e) =
-                                client.cancel_algo_order(&creds, symbol, &tp_order_id).await
+                            if let Err(e) = client
+                                .cancel_algo_order(&creds, symbol, &tp_order_id.to_string())
+                                .await
                             {
                                 error!("Failed to cancel take profit order: {}", e);
                             }
