@@ -283,15 +283,17 @@ pub struct Order {
     pub order_id: u64,
     pub user_id: u64,
     #[serde(deserialize_with = "crate::types::de_client_order_id_opt")]
-    // custom deserializer for string/number
     pub client_order_id: Option<String>,
     pub symbol: String,
     pub side: Side,
     #[serde(rename = "type")]
     pub order_type: OrderType,
-    pub price: f64,
+    #[serde(default)]
+    pub price: Option<f64>,
     pub quantity: f64,
+    #[serde(default)]
     pub amount: Option<f64>,
+    #[serde(rename = "executed")]
     pub executed_quantity: f64,
     pub total_executed_quantity: f64,
     pub visible_quantity: f64,
