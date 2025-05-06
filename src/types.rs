@@ -260,43 +260,48 @@ pub struct SuccessResponse<T> {
 /// # Fields
 ///
 /// * `order_id` - The unique order ID
+/// * `user_id` - The user ID associated with the order
 /// * `client_order_id` - Optional client-specified order ID
 /// * `symbol` - The trading pair symbol
 /// * `side` - The order side (buy/sell)
 /// * `order_type` - The type of order
-/// * `order_price` - The order price (for limit orders)
-/// * `order_quantity` - The order quantity
-/// * `order_amount` - The order amount
-/// * `status` - The current order status
+/// * `price` - The order price (for limit orders)
+/// * `quantity` - The order quantity
+/// * `amount` - The order amount
 /// * `executed_quantity` - The quantity that has been executed
-/// * `executed_value` - The value of executed quantity
-/// * `average_executed_price` - The average execution price
+/// * `total_executed_quantity` - The total quantity that has been executed
+/// * `visible_quantity` - The visible quantity (for iceberg orders)
+/// * `status` - The current order status
 /// * `total_fee` - The total fee for the order
 /// * `fee_asset` - The asset in which fees are paid
-/// * `visible_quantity` - The visible quantity (for iceberg orders)
+/// * `average_executed_price` - The average execution price
 /// * `created_time` - The timestamp when the order was created
 /// * `updated_time` - The timestamp when the order was last updated
+/// * `realized_pnl` - The realized profit and loss for the order
 #[derive(Deserialize, Debug, Clone)]
 pub struct Order {
     pub order_id: u64,
+    pub user_id: u64,
+    #[serde(deserialize_with = "crate::types::de_client_order_id_opt")]
+    // custom deserializer for string/number
     pub client_order_id: Option<String>,
     pub symbol: String,
     pub side: Side,
     #[serde(rename = "type")]
     pub order_type: OrderType,
-    pub order_price: Option<f64>,
-    pub order_quantity: Option<f64>,
-    pub order_amount: Option<f64>,
+    pub price: f64,
+    pub quantity: f64,
+    pub amount: Option<f64>,
+    pub executed_quantity: f64,
+    pub total_executed_quantity: f64,
+    pub visible_quantity: f64,
     pub status: OrderStatus,
-    pub executed_quantity: Option<f64>,
-    pub executed_value: Option<f64>,
-    pub average_executed_price: Option<f64>,
-    pub total_fee: Option<f64>,
-    pub fee_asset: Option<String>,
-    pub visible_quantity: Option<f64>,
+    pub total_fee: f64,
+    pub fee_asset: String,
+    pub average_executed_price: f64,
     pub created_time: u64,
     pub updated_time: u64,
-    // Add reduce_only, source, trigger_price etc. if present in actual response
+    pub realized_pnl: f64,
 }
 
 /// Response structure for algorithmic order details
@@ -1528,4 +1533,69 @@ pub struct WithdrawNonceResponse {
 pub struct WithdrawNonceData {
     #[serde(rename = "withdrawNonce")]
     pub withdraw_nonce: String,
+}
+
+/// Details of a specific trade as returned by GET /v1/trade/{trade_id}
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct TradeDetails {
+    pub id: u64,
+    pub symbol: String,
+    pub fee: f64,
+    pub fee_asset: String,
+    pub side: String, // Consider using an enum if you want stricter typing
+    pub order_id: u64,
+    pub executed_price: f64,
+    pub executed_quantity: f64,
+    pub executed_timestamp: u64,
+    pub is_maker: u8, // 1 or 0
+    pub realized_pnl: f64,
+    pub match_id: String,
+}
+
+/// Response for GET /v1/trade/{trade_id}
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct GetTradeResponse {
+    pub success: bool,
+    pub timestamp: u64,
+    pub data: TradeDetails,
+}
+
+// Custom deserializer for client_order_id (string or number)
+use serde::de::{self, Deserializer};
+pub fn de_client_order_id_opt<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct StringOrNumber;
+    impl<'de> de::Visitor<'de> for StringOrNumber {
+        type Value = Option<String>;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("string or number or null")
+        }
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E> {
+            Ok(Some(v.to_string()))
+        }
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E> {
+            Ok(Some(v))
+        }
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> {
+            Ok(Some(v.to_string()))
+        }
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E> {
+            Ok(Some(v.to_string()))
+        }
+        fn visit_none<E>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_unit<E>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+        fn visit_some<D2>(self, deserializer: D2) -> Result<Self::Value, D2::Error>
+        where
+            D2: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(StringOrNumber)
+        }
+    }
+    deserializer.deserialize_option(StringOrNumber)
 }

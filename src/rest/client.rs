@@ -979,14 +979,18 @@ impl OrderlyService {
     /// Get specific trade by ID for the specified user.
     /// GET /v1/trade/{trade_id}
     ///
-    /// https://orderly.network/docs/build-on-evm/evm-api/restful-api/private/get-trade
-    pub async fn get_trade(&self, creds: &Credentials<'_>, trade_id: u64) -> Result<Value> {
-        // Added credentials parameter
+    /// [Orderly API docs](https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/get-trade)
+    pub async fn get_trade(
+        &self,
+        creds: &Credentials<'_>,
+        trade_id: u64,
+    ) -> Result<crate::types::GetTradeResponse> {
         let path = format!("/v1/trade/{}", trade_id);
         let request = self
-            .build_signed_request::<()>(creds, Method::GET, &path, None) // Pass creds
+            .build_signed_request::<()>(creds, Method::GET, &path, None)
             .await?;
-        self.send_request::<Value>(request).await
+        self.send_request::<crate::types::GetTradeResponse>(request)
+            .await
     }
 
     // ===== Client Statistics =====
