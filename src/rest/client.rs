@@ -24,7 +24,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url; // For keypair.pubkey() // Import v256
 
-const MAINNET_API_URL: &str = "https://api-evm.orderly.network";
+const MAINNET_API_URL: &str = "https://api.orderly.org";
 const TESTNET_API_URL: &str = "https://testnet-api-evm.orderly.network";
 const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
@@ -1420,9 +1420,9 @@ impl OrderlyService {
 
         // Build path
         let path = if query_string.is_empty() {
-            "/v1/algo-orders".to_string()
+            "/v1/algo/orders".to_string()
         } else {
-            format!("/v1/algo-orders?{}", query_string)
+            format!("/v1/algo/orders?{}", query_string)
         };
 
         // Build signed request
@@ -1689,6 +1689,29 @@ impl OrderlyService {
             )))
         })?;
         Ok(STANDARD.encode(tx_bytes))
+    }
+
+    /// Get details of a single algo order by order_id.
+    ///
+    /// [Orderly API docs](https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/get-algo-order-by-order_id)
+    ///
+    /// # Arguments
+    /// * `creds` - Credentials for authentication
+    /// * `order_id` - The algo order ID to fetch
+    ///
+    /// # Returns
+    /// A `SuccessResponse<AlgoOrderDetails>` with the order details
+    pub async fn get_algo_order_by_id(
+        &self,
+        creds: &Credentials<'_>,
+        order_id: &str,
+    ) -> Result<SuccessResponse<crate::types::AlgoOrderDetails>> {
+        let path = format!("/v1/algo/order/{}", order_id);
+        let request = self
+            .build_signed_request::<()>(creds, reqwest::Method::GET, &path, None)
+            .await?;
+        self.send_request::<SuccessResponse<crate::types::AlgoOrderDetails>>(request)
+            .await
     }
 }
 
