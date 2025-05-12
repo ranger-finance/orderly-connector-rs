@@ -274,5 +274,3 @@ async fn test_get_broker_volume() {
         "Meta should have records_per_page > 0"
     );
 }
-
-// Add more tests for other private endpoints: get_account_info, positions, etc.
