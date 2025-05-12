@@ -266,14 +266,13 @@ async fn test_get_broker_volume() {
         result.err()
     );
     let resp = result.unwrap();
+    println!("Broker Volume Response: {:#?}", resp);
     assert!(resp.success, "API response indicates failure");
     // Check that meta and rows are present
     assert!(
         resp.data.meta.records_per_page > 0,
         "Meta should have records_per_page > 0"
     );
-    // Rows may be empty if no volume, but should be present
-    assert!(resp.data.rows.len() >= 0, "Rows should be present");
 }
 
 // Add more tests for other private endpoints: get_account_info, positions, etc.

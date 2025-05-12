@@ -1544,7 +1544,8 @@ pub struct GetBrokerVolumeParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_tag: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub aggregateBy: Option<String>, // "DATE" or "ACCOUNT"
+    #[serde(rename = "aggregateBy")]
+    pub aggregate_by: Option<String>, // "DATE" or "ACCOUNT"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<String>,
 }
