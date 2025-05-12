@@ -1529,3 +1529,61 @@ pub struct WithdrawNonceData {
     #[serde(rename = "withdrawNonce")]
     pub withdraw_nonce: String,
 }
+
+/// Query parameters for the Get Builder's Users' Volumes endpoint (/v1/volume/broker/daily)
+#[derive(Serialize, Debug, Clone, Default)]
+pub struct GetBrokerVolumeParams {
+    pub start_date: String, // YYYY-MM-DD
+    pub end_date: String,   // YYYY-MM-DD
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_tag: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aggregateBy: Option<String>, // "DATE" or "ACCOUNT"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<String>,
+}
+
+/// Represents a single row in the broker volume response.
+#[derive(Deserialize, Debug, Clone)]
+pub struct BrokerVolumeRow {
+    pub account_id: String,
+    pub date: String,
+    pub perp_volume: f64,
+    pub perp_maker_volume: f64,
+    #[serde(rename = "perp_taker_volum")]
+    pub perp_taker_volume: f64,
+    pub total_fee: f64,
+    pub broker_fee: f64,
+    pub address: String,
+    pub realized_pnl: f64,
+}
+
+/// Metadata for paginated broker volume response.
+#[derive(Deserialize, Debug, Clone)]
+pub struct BrokerVolumeMeta {
+    pub records_per_page: u32,
+    pub current_page: u32,
+    pub total: u32,
+}
+
+/// Data field for the broker volume response.
+#[derive(Deserialize, Debug, Clone)]
+pub struct BrokerVolumeData {
+    pub snapshot_time: u64,
+    pub rows: Vec<BrokerVolumeRow>,
+    pub meta: BrokerVolumeMeta,
+}
+
+/// Response for GET /v1/volume/broker/daily
+#[derive(Deserialize, Debug, Clone)]
+pub struct GetBrokerVolumeResponse {
+    pub success: bool,
+    pub timestamp: u64,
+    pub data: BrokerVolumeData,
+}

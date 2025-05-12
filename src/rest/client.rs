@@ -1624,6 +1624,28 @@ impl OrderlyService {
         })?;
         Ok(nonce)
     }
+
+    /// Get daily historical breakdown of user trading volume on the specified builder.
+    /// GET /v1/volume/broker/daily
+    ///
+    /// https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/get-builders-users-volumes
+    pub async fn get_broker_volume(
+        &self,
+        creds: &Credentials<'_>,
+        params: GetBrokerVolumeParams,
+    ) -> Result<GetBrokerVolumeResponse> {
+        let mut path = "/v1/volume/broker/daily".to_string();
+        let query = serde_qs::to_string(&params)
+            .map_err(|e| OrderlyError::JsonEncodeError(e.to_string()))?;
+        if !query.is_empty() {
+            path.push('?');
+            path.push_str(&query);
+        }
+        let request = self
+            .build_signed_request::<()>(creds, Method::GET, &path, None)
+            .await?;
+        self.send_request::<GetBrokerVolumeResponse>(request).await
+    }
 }
 
 // ===== Helper Structs (Restore these) =====
