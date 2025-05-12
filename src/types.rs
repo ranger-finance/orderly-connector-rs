@@ -1554,14 +1554,19 @@ pub struct GetBrokerVolumeParams {
 pub struct BrokerVolumeRow {
     pub account_id: String,
     pub date: String,
-    pub perp_volume: f64,
-    pub perp_maker_volume: f64,
-    #[serde(rename = "perp_taker_volum")]
-    pub perp_taker_volume: f64,
-    pub total_fee: f64,
-    pub broker_fee: f64,
+    #[serde(default)]
+    pub perp_volume: Option<f64>,
+    #[serde(default)]
+    pub perp_maker_volume: Option<f64>,
+    #[serde(default, rename = "perp_taker_volum")]
+    pub perp_taker_volume: Option<f64>,
+    #[serde(default)]
+    pub total_fee: Option<f64>,
+    #[serde(default)]
+    pub broker_fee: Option<f64>,
     pub address: String,
-    pub realized_pnl: f64,
+    #[serde(default)]
+    pub realized_pnl: Option<f64>,
 }
 
 /// Metadata for paginated broker volume response.
