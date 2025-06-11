@@ -135,6 +135,18 @@ pub enum OrderlyTimeInForce {
 ///   - Must be unique among open orders
 ///   - New orders with duplicate client_order_id are accepted only after previous one completes
 ///
+/// * `reduce_only` - Critical flag for position-decreasing orders
+///   - **RECOMMENDED** for all orders that decrease existing positions
+///   - When `true`, the order can only reduce the current position size, never increase it
+///   - Helps avoid margin requirement issues when closing/reducing positions
+///   - Essential for risk management in leveraged trading
+///   - **Use Cases:**
+///     - Closing positions (full or partial)
+///     - Taking profits
+///     - Stop-loss orders
+///     - Any order intended to reduce position size
+///   - **Risk Mitigation:** Prevents accidental position increases that could lead to liquidation
+///
 /// * `order_tag` (Optional): A user-defined tag for the order.
 ///   Reference: https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
 ///
@@ -148,6 +160,7 @@ pub enum OrderlyTimeInForce {
 /// * `order_amount` - The total amount in quote currency (e.g., USDC in PERP_ETH_USDC)
 /// * `client_order_id` - Optional client-specified order ID (36 chars max, can include hyphens)
 /// * `visible_quantity` - Optional visible quantity for iceberg orders
+/// * `reduce_only` - When true, order can only reduce position size (recommended for closes/decreases)
 /// Reference: https://orderly.network/docs/build-on-omnichain/evm-api/restful-api/private/create-order
 #[derive(Serialize, Debug, Clone)]
 pub struct CreateOrderRequest {
@@ -164,7 +177,244 @@ pub struct CreateOrderRequest {
     pub client_order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub visible_quantity: Option<f64>,
-    // Add other optional fields like reduce_only, trigger_price etc. if needed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reduce_only: Option<bool>,
+    // Add other optional fields like trigger_price etc. if needed
+}
+
+impl CreateOrderRequest {
+    /// Creates a new order request with basic required fields.
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol (e.g., "PERP_ETH_USDC")
+    /// * `order_type` - Type of order (Market, Limit, etc.)
+    /// * `side` - Buy or Sell
+    ///
+    /// # Example
+    /// ```rust
+    /// use orderly_connector_rs::types::{CreateOrderRequest, OrderType, Side};
+    ///
+    /// let order = CreateOrderRequest::new(
+    ///     "PERP_ETH_USDC".to_string(),
+    ///     OrderType::Market,
+    ///     Side::Buy
+    /// );
+    /// ```
+    pub fn new(symbol: String, order_type: OrderType, side: Side) -> Self {
+        Self {
+            symbol,
+            order_type,
+            side,
+            order_price: None,
+            order_quantity: None,
+            order_amount: None,
+            client_order_id: None,
+            visible_quantity: None,
+            reduce_only: None,
+        }
+    }
+
+    /// Creates a market order for closing/reducing a position.
+    ///
+    /// **Automatically sets `reduce_only = true`** to prevent accidental position increases
+    /// and avoid margin requirement issues.
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol
+    /// * `side` - Side to close (opposite of current position)
+    /// * `quantity` - Amount to close (in base currency)
+    ///
+    /// # Example
+    /// ```rust
+    /// use orderly_connector_rs::types::{CreateOrderRequest, Side};
+    ///
+    /// // Close a long position by selling
+    /// let close_order = CreateOrderRequest::market_close_position(
+    ///     "PERP_ETH_USDC".to_string(),
+    ///     Side::Sell,
+    ///     1.5  // Close 1.5 ETH
+    /// );
+    /// ```
+    pub fn market_close_position(symbol: String, side: Side, quantity: f64) -> Self {
+        Self {
+            symbol,
+            order_type: OrderType::Market,
+            side,
+            order_price: None,
+            order_quantity: Some(quantity),
+            order_amount: None,
+            client_order_id: None,
+            visible_quantity: None,
+            reduce_only: Some(true), // Critical: prevents position increases
+        }
+    }
+
+    /// Creates a limit order for reducing a position.
+    ///
+    /// **Automatically sets `reduce_only = true`** to ensure the order can only decrease
+    /// the position size, preventing margin issues.
+    ///
+    /// # Arguments
+    /// * `symbol` - Trading pair symbol
+    /// * `side` - Side to reduce (opposite of current position)
+    /// * `quantity` - Amount to reduce (in base currency)
+    /// * `price` - Limit price for the order
+    ///
+    /// # Example
+    /// ```rust
+    /// use orderly_connector_rs::types::{CreateOrderRequest, Side};
+    ///
+    /// // Take profit on a long position
+    /// let take_profit = CreateOrderRequest::limit_reduce_position(
+    ///     "PERP_ETH_USDC".to_string(),
+    ///     Side::Sell,
+    ///     0.5,     // Reduce by 0.5 ETH
+    ///     3500.0   // At $3500 price
+    /// );
+    /// ```
+    pub fn limit_reduce_position(symbol: String, side: Side, quantity: f64, price: f64) -> Self {
+        Self {
+            symbol,
+            order_type: OrderType::Limit,
+            side,
+            order_price: Some(price),
+            order_quantity: Some(quantity),
+            order_amount: None,
+            client_order_id: None,
+            visible_quantity: None,
+            reduce_only: Some(true), // Critical: prevents position increases
+        }
+    }
+
+    /// Builder method to set the order price.
+    pub fn with_price(mut self, price: f64) -> Self {
+        self.order_price = Some(price);
+        self
+    }
+
+    /// Builder method to set the order quantity.
+    pub fn with_quantity(mut self, quantity: f64) -> Self {
+        self.order_quantity = Some(quantity);
+        self
+    }
+
+    /// Builder method to set the order amount (in quote currency).
+    pub fn with_amount(mut self, amount: f64) -> Self {
+        self.order_amount = Some(amount);
+        self
+    }
+
+    /// Builder method to set a client order ID.
+    pub fn with_client_id(mut self, client_id: String) -> Self {
+        self.client_order_id = Some(client_id);
+        self
+    }
+
+    /// Builder method to set visible quantity for iceberg orders.
+    pub fn with_visible_quantity(mut self, visible_quantity: f64) -> Self {
+        self.visible_quantity = Some(visible_quantity);
+        self
+    }
+
+    /// Builder method to explicitly set the reduce_only flag.
+    ///
+    /// **Note:** Consider using `market_close_position()` or `limit_reduce_position()`
+    /// for position-decreasing orders as they automatically set this flag.
+    pub fn with_reduce_only(mut self, reduce_only: bool) -> Self {
+        self.reduce_only = Some(reduce_only);
+        self
+    }
+
+    /// Validates the order request for common issues.
+    ///
+    /// # Returns
+    /// * `Ok(())` if the order appears valid
+    /// * `Err(String)` with validation error message
+    ///
+    /// # Example
+    /// ```rust
+    /// use orderly_connector_rs::types::{CreateOrderRequest, OrderType, Side};
+    ///
+    /// let order = CreateOrderRequest::new("PERP_ETH_USDC".to_string(), OrderType::Limit, Side::Buy)
+    ///     .with_price(3000.0)
+    ///     .with_quantity(1.0);
+    ///     
+    /// if let Err(msg) = order.validate() {
+    ///     eprintln!("Order validation failed: {}", msg);
+    /// }
+    /// ```
+    pub fn validate(&self) -> Result<(), String> {
+        // Check for required fields based on order type
+        match self.order_type {
+            OrderType::Limit | OrderType::PostOnly | OrderType::Ask | OrderType::Bid => {
+                if self.order_price.is_none() {
+                    return Err("Limit orders require order_price".to_string());
+                }
+            }
+            _ => {}
+        }
+
+        // Check quantity/amount exclusivity
+        if self.order_quantity.is_some() && self.order_amount.is_some() {
+            return Err("Cannot specify both order_quantity and order_amount".to_string());
+        }
+
+        // Check that either quantity or amount is specified
+        if self.order_quantity.is_none() && self.order_amount.is_none() {
+            return Err("Must specify either order_quantity or order_amount".to_string());
+        }
+
+        // Validate visible quantity
+        if let (Some(visible), Some(total)) = (self.visible_quantity, self.order_quantity) {
+            if visible < 0.0 {
+                return Err("visible_quantity cannot be negative".to_string());
+            }
+            if visible > total {
+                return Err("visible_quantity cannot exceed order_quantity".to_string());
+            }
+        }
+
+        // Validate reduce_only usage recommendations
+        if self.reduce_only == Some(true) {
+            // This is good practice - no validation error, but could log info
+        } else if self.reduce_only.is_none() {
+            // Consider suggesting reduce_only for certain patterns
+            // This is not an error, just a recommendation
+        }
+
+        Ok(())
+    }
+
+    /// Determines if this order is intended to reduce a position based on common patterns.
+    ///
+    /// This is a heuristic helper that suggests when `reduce_only` might be appropriate.
+    /// **Note:** This doesn't guarantee the order will reduce a position - that depends
+    /// on the actual current position.
+    ///
+    /// # Returns
+    /// * `true` if the order pattern suggests it's meant to reduce a position
+    /// * `false` otherwise
+    pub fn appears_position_reducing(&self) -> bool {
+        // If explicitly marked as reduce_only
+        if self.reduce_only == Some(true) {
+            return true;
+        }
+
+        // Check client_order_id for common patterns
+        if let Some(ref client_id) = self.client_order_id {
+            let id_lower = client_id.to_lowercase();
+            if id_lower.contains("close")
+                || id_lower.contains("reduce")
+                || id_lower.contains("exit")
+                || id_lower.contains("take_profit")
+                || id_lower.contains("stop_loss")
+            {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 /// Parameters for retrieving multiple orders.

@@ -326,11 +326,12 @@ async fn main() -> Result<(), OrderlyError> {
             symbol: symbol.to_string(),
             order_type: OrderType::Market,
             side: Side::Buy,
-            order_price: None,
             order_quantity: Some(quantity),
+            order_price: None,
             order_amount: None,
-            client_order_id: Some("my_order_id".to_string()),
+            client_order_id: Some("market_entry_order".to_string()),
             visible_quantity: None,
+            reduce_only: None, // Not a reduce-only order for opening position
         };
 
         let entry_order_id = client

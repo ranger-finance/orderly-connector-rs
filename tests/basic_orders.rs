@@ -61,6 +61,7 @@ async fn test_market_order_creation() {
                 order_amount: None,
                 client_order_id: None,
                 visible_quantity: None,
+                reduce_only: None,
             },
         )
         .await;
@@ -119,6 +120,7 @@ async fn test_limit_order_creation() {
                 order_amount: None,
                 client_order_id: None,
                 visible_quantity: None,
+                reduce_only: None,
             },
         )
         .await;
@@ -319,6 +321,7 @@ async fn test_error_handling() {
                 order_amount: None,
                 client_order_id: None,
                 visible_quantity: None,
+                reduce_only: None,
             },
         )
         .await;

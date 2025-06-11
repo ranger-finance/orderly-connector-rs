@@ -71,6 +71,7 @@ async fn place_limit_order(
         order_amount: None,
         client_order_id: Some("my_order_id".to_string()),
         visible_quantity: None,
+        reduce_only: None,
     };
 
     match client.create_order(creds, order_req).await {

@@ -68,8 +68,9 @@ async fn place_market_order(
         order_price: None, // Market orders don't specify price
         order_quantity: Some(quantity),
         order_amount: None,
-        client_order_id: Some("my_order_id".to_string()),
+        client_order_id: Some("open_position_order".to_string()),
         visible_quantity: None,
+        reduce_only: None, // Not a reduce-only order for opening positions
     };
 
     match client.create_order(creds, order_req).await {
@@ -88,6 +89,47 @@ async fn place_market_order(
         }
         Err(e) => {
             error!("Failed to place market order: {}", e);
+            Err(e)
+        }
+    }
+}
+
+/// Places a reduce-only market order to close/reduce a position.
+///
+/// This function uses the `reduce_only` flag to ensure the order can only decrease
+/// the position size, preventing accidental position increases and margin issues.
+async fn place_close_position_order(
+    client: &OrderlyService,
+    creds: &Credentials<'_>,
+    symbol: &str,
+    side: Side,
+    quantity: f64,
+) -> Result<u64, OrderlyError> {
+    info!(
+        "Placing REDUCE-ONLY market {:?} order for {} {} to close position",
+        side, quantity, symbol
+    );
+
+    // Use the convenience method that automatically sets reduce_only = true
+    let order_req = CreateOrderRequest::market_close_position(symbol.to_string(), side, quantity)
+        .with_client_id("close_position_order".to_string());
+
+    match client.create_order(creds, order_req).await {
+        Ok(resp) => {
+            if resp.success {
+                info!(
+                    "Reduce-only market order placed successfully: ID {}",
+                    resp.data.order_id
+                );
+                Ok(resp.data.order_id)
+            } else {
+                Err(OrderlyError::ValidationError(
+                    "Order creation failed".into(),
+                ))
+            }
+        }
+        Err(e) => {
+            error!("Failed to place reduce-only market order: {}", e);
             Err(e)
         }
     }
@@ -219,7 +261,7 @@ async fn main() -> Result<(), OrderlyError> {
     let close_quantity = position_size.abs();
 
     let close_order_id =
-        place_market_order(&client, &creds, symbol, close_side, close_quantity).await?;
+        place_close_position_order(&client, &creds, symbol, close_side, close_quantity).await?;
     let close_status = monitor_order(&client, &creds, close_order_id, 30).await?;
 
     if close_status == OrderStatus::Filled {
