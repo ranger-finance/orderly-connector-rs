@@ -55,6 +55,7 @@ async fn test_create_get_cancel_order() {
         order_amount: None,
         client_order_id: Some("my_order_id".to_string()),
         visible_quantity: None,
+        reduce_only: None,
     };
 
     let created_order_id = match client.create_order(&creds, order_req).await {

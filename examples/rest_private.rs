@@ -37,11 +37,12 @@ async fn main() {
         symbol: symbol.to_string(),
         order_type: OrderType::Limit,
         side: Side::Buy,
-        order_price: Some(1000.0), // Place below market to avoid immediate fill
+        order_price: Some(3000.0),
         order_quantity: Some(0.01),
         order_amount: None,
-        client_order_id: Some("my_order_id".to_string()),
+        client_order_id: Some("test_order_001".to_string()),
         visible_quantity: None,
+        reduce_only: None, // Not a reduce-only order
     };
 
     let creds = Credentials {

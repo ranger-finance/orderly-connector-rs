@@ -65,6 +65,7 @@ async fn place_market_order(
         order_amount: None,
         client_order_id: None,
         visible_quantity: None,
+        reduce_only: None, // Not a reduce-only order
     };
 
     match client.create_order(creds, order_req).await {
@@ -111,6 +112,7 @@ async fn place_limit_order(
         order_amount: None,
         client_order_id: Some("my_order_id".to_string()),
         visible_quantity: None,
+        reduce_only: None, // Not a reduce-only order
     };
 
     match client.create_order(creds, order_req).await {

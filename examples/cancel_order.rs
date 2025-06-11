@@ -76,6 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         order_amount: None,
         visible_quantity: None,
         client_order_id: Some("my_order_id".to_string()),
+        reduce_only: None,
     };
 
     // Place the order
