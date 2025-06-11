@@ -164,6 +164,8 @@ pub struct CreateOrderRequest {
     pub client_order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub visible_quantity: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reduce_only: Option<bool>,
     // Add other optional fields like reduce_only, trigger_price etc. if needed
 }
 
