@@ -17,7 +17,7 @@ use solana_sdk::signer::Signer;
 use std::time::Duration;
 use url::Url; // For keypair.pubkey() // Import v256
 
-const MAINNET_API_URL: &str = "https://api-evm.orderly.network";
+const MAINNET_API_URL: &str = "https://api.orderly.org";
 const TESTNET_API_URL: &str = "https://testnet-api-evm.orderly.network";
 const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 
